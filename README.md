@@ -1,7 +1,8 @@
 # 🔥 Heat Flux Time Series Prediction in Tokamak Reactors
 
 ![Python 3.13](https://img.shields.io/badge/python-3.13-blue?style=flat-square&logo=python&logoColor=white)
-![UV](https://img.shields.io/pypi/v/uv?style=flat-square&logo=pypi&logoColor=white)
+![UV](https://img.shields.io/pypi/v/uv?label=uv&style=flat-square&logo=pypi&logoColor=white)
+
 
 Welcome to the Fusion Time Series playground — example code and notebooks for experimenting with TiRex time-series forecasting models and surrounding tooling.
 
