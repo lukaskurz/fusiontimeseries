@@ -4,4 +4,14 @@ version = "0.1.0"
 description = "Time series prediction of heat flux time traces in Tokamak reactors."
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "tirex-ts[gluonts,hfdataset]>=1.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.1.0",
+    "ipywidgets>=8.1.8",
+    "matplotlib>=3.10.7",
+    "pre-commit>=4.3.0",
+]
