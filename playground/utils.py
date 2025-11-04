@@ -21,6 +21,7 @@ def plot_forecast(
         batch_idx (int, optional): Index of the timeseries in the batch to plot. Defaults to 0.
     """
     quantile_dim: int = quantile_fc.shape[-1]
+    percentages: list[float] = quantile_percentages(quantile_dim)
 
     median_forecast = quantile_fc[batch_idx, :, quantile_dim // 2].numpy()
     lower_bound = quantile_fc[batch_idx, :, 0].numpy()
@@ -44,7 +45,7 @@ def plot_forecast(
     plt.plot(
         forecast_x,
         median_forecast,
-        label=f"Forecast ({int(quantile_dim // 2 * 10)}% Quantile)",
+        label=f"Forecast ({percentages[quantile_dim // 2]:.1f}% Quantile)",
         color="#d94e4e",
         linestyle="--",
     )
@@ -54,9 +55,23 @@ def plot_forecast(
         upper_bound,
         color="#d94e4e",
         alpha=0.1,
-        label=f"Forecast 10% - {int(quantile_dim * 10)}% Quantiles",
+        label=f"Forecast {percentages[0]:.1f}% - {percentages[-1]:.1f}% Quantiles",
     )
     plt.xlim(left=0)
     plt.legend()
     plt.grid(True)
     plt.show()
+
+
+def quantile_percentages(n):
+    """
+    Returns a list of quantile percentages based on the number of quantiles n.
+
+    For example:
+    n = 9  -> [10, 20, ..., 90]
+    n = 10 -> [5, 15, ..., 95]
+    n = 21 -> [2.5, 7.5, ..., 97.5]
+    """
+    step = 100 / n
+    percentages = [step / 2 + step * i for i in range(n)]
+    return percentages
