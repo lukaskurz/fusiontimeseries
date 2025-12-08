@@ -1,11 +1,12 @@
 [project]
 name = "fusiontimeseries"
-version = "0.1.0"
+version = "0.2.0"
 description = "Time series prediction of heat flux time traces in Tokamak reactors."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "chronos-forecasting>=2.0.0",
+    "rich>=14.2.0",
     "timesfm",
     "tirex-ts[gluonts,hfdataset]>=1.1.1",
 ]
@@ -20,3 +21,13 @@ dev = [
 
 [tool.uv.sources]
 timesfm = { git = "https://github.com/google-research/timesfm.git" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+benchmark-1 = "fusiontimeseries.chronos_bolt_tiny_benchmark:main"
+benchmark-2 = "fusiontimeseries.chronos_2_benchmark:main"
+benchmark-3 = "fusiontimeseries.timesfm_2p5_200M_benchmark:main"
+benchmark-4 = "fusiontimeseries.tirex_benchmark:main"
