@@ -5,11 +5,19 @@ description = "Time series prediction of heat flux time traces in Tokamak reacto
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "chronos-forecasting>=2.0.0",
+    "chronos-forecasting>=2.1.0",
+    "hf-xet>=1.2.0",
     "rich>=14.2.0",
     "timesfm",
     "tirex-ts[gluonts,hfdataset]>=1.1.1",
 ]
+
+[project.optional-dependencies]
+cpu = ["torch>=2.9"]
+cu126 = ["torch>=2.9"]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu126" }]]
 
 [dependency-groups]
 dev = [
@@ -17,17 +25,37 @@ dev = [
     "ipywidgets>=8.1.8",
     "matplotlib>=3.10.7",
     "pre-commit>=4.3.0",
+    "seaborn>=0.13.2",
 ]
 
 [tool.uv.sources]
 timesfm = { git = "https://github.com/google-research/timesfm.git" }
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu126", extra = "cu126" },
+]
+
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.scripts]
-benchmark-1 = "fusiontimeseries.chronos_bolt_tiny_benchmark:main"
-benchmark-2 = "fusiontimeseries.chronos_2_benchmark:main"
-benchmark-3 = "fusiontimeseries.timesfm_2p5_200M_benchmark:main"
-benchmark-4 = "fusiontimeseries.tirex_benchmark:main"
+b-chr-tiny = "fusiontimeseries.legacy.chronos_bolt_tiny_benchmark:main"
+b-chr-2 = "fusiontimeseries.legacy.chronos_2_benchmark:main"
+b-tim-2p5 = "fusiontimeseries.legacy.timesfm_2p5_200M_benchmark:main"
+b-tir = "fusiontimeseries.legacy.tirex_benchmark:main"
+b-chr-tiny-v2 = "fusiontimeseries.legacy.chronos_bolt_tiny_benchmarkv2:main"
+b-chr-2-v2 = "fusiontimeseries.legacy.chronos_2_benchmarkv2:main"
+b-tim-2p5-v2 = "fusiontimeseries.legacy.timesfm_2p5_200M_benchmarkv2:main"
+b-tir-v2 = "fusiontimeseries.legacy.tirex_benchmarkv2:main"
