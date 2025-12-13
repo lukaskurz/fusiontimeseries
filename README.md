@@ -20,16 +20,16 @@ git clone https://github.com/sbergsmann/fusiontimeseries.git
 cd fusiontimeseries
 ```
 
-2. Create and activate a virtual environment (recommended):
+2. Install dependencies:
 
+For GPU support (CUDA 12.6):
 ```powershell
-uv sync --all-extras
+uv sync --extra cu126 --group dev
 ```
 
-If your hardware does not support CUDA, you can install the CPU-only version of PyTorch (see [here](https://docs.astral.sh/uv/guides/integration/pytorch/#configuring-accelerators-with-optional-dependencies) for more details):
-
+For CPU-only:
 ```powershell
-uv sync --all-extras --pip-args="--extra-index-url https://download.pytorch.org/whl/cpu"
+uv sync --extra cpu --group dev
 ```
 
 3. Install pre-commit hooks
