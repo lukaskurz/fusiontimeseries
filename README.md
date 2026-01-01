@@ -69,6 +69,8 @@ Comparison of pre-trained time series models on heat flux prediction without fin
 
 Performance of finetuned models on the same heat flux prediction task.
 
+300 flux trace simulations were at our disposal. For the following experiments 49 traces were filtered out due to time series head and tail means not being between 1 and inf. The remaining 251 samples were sub-sampled from 800 timesteps to 266 (every 3rd timestep) to resemble the benchmark time series as closely as possible.
+
 | Model | Training Samples | Fine-tune Mode | In-Distribution RMSE | In-Distribution SE | Out-of-Distribution RMSE | Out-of-Distribution SE | Date |
 |-------|-----------------|----------------|---------------------|-------------------|-------------------------|----------------------|------|
 | **Chronos2 (Finetuned)** | 251 | LoRA | **18.29** | **3.54** | **37.45** | **6.77** | 2025-12-31 |
