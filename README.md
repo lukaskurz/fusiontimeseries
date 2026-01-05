@@ -56,12 +56,12 @@ This repository and the included notebook have been validated on Windows (PowerS
 
 Comparison of pre-trained time series models on heat flux prediction without finetuning. Metrics measured on the last 80 timesteps (prediction tail).
 
-| Model | In-Distribution RMSE | In-Distribution SE | Out-of-Distribution RMSE | Out-of-Distribution SE | Date |
-|-------|---------------------|-------------------|-------------------------|----------------------|------|
-| **NX-AI/TiRex** | **63.91** | **13.62** | **44.79** | **7.92** | 2025-12-26 |
-| google/timesfm-2.5-200m-pytorch | 82.79 | 11.69 | 62.78 | 14.51 | 2025-12-26 |
-| amazon/chronos-2 | 84.86 | 14.18 | 60.78 | 12.75 | 2025-12-26 |
-| amazon/chronos-bolt-tiny | 87.78 | 13.76 | 68.02 | 13.00 | 2025-12-26 |
+| Model                           | In-Distribution RMSE | In-Distribution SE | Out-of-Distribution RMSE | Out-of-Distribution SE | Date       |
+| ------------------------------- | -------------------- | ------------------ | ------------------------ | ---------------------- | ---------- |
+| **NX-AI/TiRex**                 | **63.91**            | **13.62**          | **44.79**                | **7.92**               | 2025-12-26 |
+| google/timesfm-2.5-200m-pytorch | 82.79                | 11.69              | 62.78                    | 14.51                  | 2025-12-26 |
+| amazon/chronos-2                | 84.86                | 14.18              | 60.78                    | 12.75                  | 2025-12-26 |
+| amazon/chronos-bolt-tiny        | 87.78                | 13.76              | 68.02                    | 13.00                  | 2025-12-26 |
 
 **Configuration**: All models used prediction length of 64 timesteps, starting context length of 80 timesteps, evaluated on 6 in-distribution and 5 out-of-distribution samples.
 
@@ -69,24 +69,33 @@ Comparison of pre-trained time series models on heat flux prediction without fin
 
 Performance of finetuned models on the same heat flux prediction task.
 
-300 flux trace simulations were at our disposal. For the following experiments 49 traces were filtered out due to time series head and tail means not being between 1 and inf. The remaining 251 samples were sub-sampled from 800 timesteps to 266 (every 3rd timestep) to resemble the benchmark time series as closely as possible.
+300 flux trace simulations were at our disposal. For the following experiments 49 traces were filtered out due to time series head and tail means not being between 1 and inf. The remaining 251 samples were sub-sampled from 800 timesteps to 266 (every 3rd timestep) to resemble the benchmark time series as closely as possible. For finetuning the validation set consists of the tail of
 
-| Model | Training Samples | Fine-tune Mode | In-Distribution RMSE | In-Distribution SE | Out-of-Distribution RMSE | Out-of-Distribution SE | Date |
-|-------|-----------------|----------------|---------------------|-------------------|-------------------------|----------------------|------|
-| **Chronos2 (Finetuned)** | 251 | LoRA | **18.29** | **3.54** | **37.45** | **6.77** | 2025-12-31 |
+To increase the amount of training data, I subsampled each flux trace three times with a distance of three timesteps.
 
-**Finetuning Configuration**:
+| Model                               | Training Samples | Fine-tune Mode | In-Distribution RMSE | In-Distribution SE | Out-of-Distribution RMSE | Out-of-Distribution SE | Date       |
+| ----------------------------------- | ---------------- | -------------- | -------------------- | ------------------ | ------------------------ | ---------------------- | ---------- |
+| Chronos2 (Finetuned)                | 251              | LoRA           | 18.29                | 3.54               | 37.45                    | 6.77                   | 2025-12-31 |
+| **Chronos2 (Hyperparameter Tuned)** | 251              | LoRA           | **15.41**            | **2.55**           | **34.05**                | **9.87**               | 2026-01-01 |
+| Chronos2 T2 (Augmented Data)        | 753              | LoRA           | 26.32                | 4.53               | 36.54                    | 10.56                  | 2026-01-01 |
+
+**Finetuning Configuration (Hyperparameter Tuned)**:
 - Fine-tune mode: LoRA (Low-Rank Adaptation)
-- Learning rate: 5e-5
+- Learning rate: 1.77e-4 (Bayesian optimized)
 - Fine-tune steps: 3000
-- Batch size: 64
+- Batch size: 64 (Bayesian optimized)
+- Cross learning: True (Bayesian optimized)
+- LoRA config: r=16, alpha=32, dropout=0.1
 - Prediction length: 64 timesteps
 - Context length: 80 timesteps
+- Hyperparameter tuning: 8 trials with Bayesian search
 
 **Key Findings**:
-- 🎯 Finetuning Chronos2 with LoRA achieved **71.4% improvement** in ID RMSE compared to zero-shot (84.86 → 18.29)
-- 🎯 **38.4% improvement** in OOD RMSE compared to zero-shot (60.78 → 37.45)
-- 📈 TiRex shows best zero-shot performance, but finetuned Chronos2 outperforms all zero-shot models significantly
+- 🎯 Hyperparameter tuning Chronos2 with LoRA achieved **81.8% improvement** in ID RMSE compared to zero-shot (84.86 → 15.41)
+- 🎯 **44.0% improvement** in OOD RMSE compared to zero-shot (60.78 → 34.05)
+- 🔧 Hyperparameter tuning improved ID RMSE by **15.8%** over basic finetuning (18.29 → 15.41)
+- 🔧 Hyperparameter tuning improved OOD RMSE by **9.1%** over basic finetuning (37.45 → 34.05)
+- 📈 TiRex shows best zero-shot performance, but hyperparameter-tuned Chronos2 outperforms all zero-shot models significantly
 
 # Finetuning
 
