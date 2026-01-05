@@ -26,7 +26,7 @@ def plot_forecast(
     median_forecast = quantile_fc[batch_idx, :, quantile_dim // 2].numpy()
     lower_bound = quantile_fc[batch_idx, :, 0].numpy()
     upper_bound = quantile_fc[batch_idx, :, -1].numpy()
-    context = ctx[batch_idx, :].numpy()
+    context = ctx[batch_idx, :].cpu().numpy()
 
     original_x = range(len(context))
     forecast_x = range(len(context), len(context) + len(median_forecast))
