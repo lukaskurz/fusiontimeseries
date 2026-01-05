@@ -20,7 +20,7 @@ __all__ = [
 
 
 class BenchmarkConfig(BaseModel):
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    device: str = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     model_slug: str
     model_prediction_length: int
     relevant_prediction_tail: int
@@ -86,7 +86,7 @@ class BenchmarkDataProvider:
     """
 
     FLUX_DATA_PATH = (
-        Path(__file__).parent.parent.parent.parent
+        Path(__file__).resolve().parent.parent.parent.parent.parent
         / "data"
         / "flux"
         / "benchmark"
