@@ -69,7 +69,12 @@ Comparison of pre-trained time series models on heat flux prediction without fin
 
 Performance of finetuned models on the same heat flux prediction task.
 
-300 flux trace simulations were at our disposal. For the following experiments 49 traces were filtered out due to time series head and tail means not being between 1 and inf. The remaining 251 samples were sub-sampled from 800 timesteps to 266 (every 3rd timestep) to resemble the benchmark time series as closely as possible. For finetuning the validation set consists of the tail of
+300 flux trace simulations were at our disposal. For the following experiments 49 traces were filtered out due to time series head and tail means not being between 1 and inf.
+The remaining 251 samples were sub-sampled from 800 timesteps to 266 (every 3rd timestep) to resemble the benchmark time series as closely as possible.
+For finetuning autogluon samples a custom validation set from the training data. This validation set consists of timeseries where the [:-prediction_length] tail is used for validation and hyperparameter tuning.
+I created a routine to manually provide a validation set by sampling the training set timeseries in a stratified manner. This is achieved by assigning each time series to a bin depending on the time series mean.
+
+> **Todo:** However, since also with this approach only the last prediction tail is used for validation and we want to predict time series from timestep 80 onwards I have to come up with a different solution.
 
 To increase the amount of training data, I subsampled each flux trace three times with a distance of three timesteps.
 
