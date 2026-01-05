@@ -72,13 +72,18 @@ def save_finetuning_results(
         Path: Path to the saved file.
     """
     if output_dir is None:
-        output_dir = Path(__file__).resolve().parent.parent.parent.parent / "data"
+        output_dir = Path(__file__).resolve().parent.parent.parent.parent / "results"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = results.timestamp
-    safe_model_name = results.config.model_name.replace("/", "_").replace(" ", "-")
+    safe_model_name = (
+        results.config.model_name.replace("/", "_").replace("\\", "_").replace(" ", "-")
+    )
     filename = f"{timestamp}_{safe_model_name}_{filename_prefix}_results.json"
     filepath = output_dir / filename
+
+    # Ensure parent directory exists
+    filepath.parent.mkdir(parents=True, exist_ok=True)
 
     with open(filepath, "w") as f:
         json.dump(
@@ -311,7 +316,7 @@ def run_complete_evaluation(
         config (FinetuningConfig): Configuration used for finetuning.
         training_data_size (int): Number of training time series.
         predictor_path (str | None): Path to saved predictor.
-        output_dir (Path | None): Directory to save results. Defaults to data/ folder.
+        output_dir (Path | None): Directory to save results. Defaults to results/ folder.
 
     Returns:
         tuple[FinetuningResults, Path, Path]: Results object, path to JSON file, and path to plots directory.
@@ -320,10 +325,12 @@ def run_complete_evaluation(
 
     # Set up directories
     if output_dir is None:
-        output_dir = Path(__file__).resolve().parent.parent.parent.parent / "data"
+        output_dir = Path(__file__).resolve().parent.parent.parent.parent / "results"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_model_name = config.model_name.replace("/", "_").replace(" ", "-")
+    safe_model_name = (
+        config.model_name.replace("/", "_").replace("\\", "_").replace(" ", "-")
+    )
     plots_dir = output_dir / "plots" / f"{timestamp}_{safe_model_name}_finetuning"
     plots_dir.mkdir(parents=True, exist_ok=True)
 
