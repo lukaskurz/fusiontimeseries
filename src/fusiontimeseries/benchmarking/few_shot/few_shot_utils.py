@@ -27,6 +27,7 @@ class FewShotConfig(BenchmarkConfig):
     k_shot: int
     random_seed: int = 42
     example_format: Literal["context_target_pairs"] = "context_target_pairs"
+    example_target_length: int | None = 64  # None means use full remaining trace
 
 
 class FewShotExample(BaseModel):
@@ -59,7 +60,7 @@ class FewShotExample(BaseModel):
 def create_example_pool(
     exclude_ids: set[int] | None = None,
     context_length: int = 80,
-    target_length: int = 64,
+    target_length: int | None = 64,
 ) -> list[FewShotExample]:
     """Create pool of candidate examples from training data.
 
@@ -71,6 +72,7 @@ def create_example_pool(
         exclude_ids: Set of trace IDs to exclude (e.g., test set IDs)
         context_length: Length of context window (default: 80)
         target_length: Length of target window (default: 64)
+                      If None, uses full remaining trace (266 - context_length)
 
     Returns:
         List of FewShotExample objects
@@ -90,7 +92,12 @@ def create_example_pool(
 
         # Extract context and target windows
         context = trace[:context_length]
-        target = trace[context_length : context_length + target_length]
+
+        # If target_length is None, use full remaining trace
+        if target_length is None:
+            target = trace[context_length:]
+        else:
+            target = trace[context_length : context_length + target_length]
 
         # Create example
         example = FewShotExample(
@@ -101,9 +108,13 @@ def create_example_pool(
         )
         example_pool.append(example)
 
+    # Determine actual target length for logging
+    actual_target_length = "full" if target_length is None else target_length
+
     print(
         f"Created example pool with {len(example_pool)} traces "
-        f"(excluded {len(exclude_ids)} test IDs)"
+        f"(excluded {len(exclude_ids)} test IDs, "
+        f"context={context_length}, target={actual_target_length})"
     )
 
     return example_pool
@@ -125,9 +136,7 @@ def select_examples_random(
         List of k randomly selected examples
     """
     if k > len(pool):
-        raise ValueError(
-            f"Cannot select {k} examples from pool of size {len(pool)}"
-        )
+        raise ValueError(f"Cannot select {k} examples from pool of size {len(pool)}")
 
     rng = np.random.default_rng(seed)
     indices = rng.choice(len(pool), size=k, replace=False)
@@ -174,33 +183,75 @@ if __name__ == "__main__":
     # Example usage and testing
     print("Testing few-shot utilities...")
 
-    # Test example pool creation
     test_ids = {8, 115, 131, 148, 235, 262}
-    pool = create_example_pool(exclude_ids=test_ids)
-    print(f"Pool size: {len(pool)}")
+
+    # Test 1: Standard example pool (64 target)
+    print("\n--- Test 1: Standard target length (64) ---")
+    pool_64 = create_example_pool(exclude_ids=test_ids, target_length=64)
+    print(f"  Pool size: {len(pool_64)}")
+    print(
+        f"  Example lengths: ctx={len(pool_64[0].context)}, tgt={len(pool_64[0].target)}"
+    )
+
+    # Test 2: Full trace targets (None)
+    print("\n--- Test 2: Full trace targets (None) ---")
+    pool_full = create_example_pool(exclude_ids=test_ids, target_length=None)
+    print(f"  Pool size: {len(pool_full)}")
+    print(
+        f"  Example lengths: ctx={len(pool_full[0].context)}, tgt={len(pool_full[0].target)}"
+    )
+    full_trace_len = len(pool_full[0].trace)
+    expected_target = full_trace_len - 80
+    assert len(pool_full[0].target) == expected_target, (
+        f"Expected {expected_target}, got {len(pool_full[0].target)}"
+    )
+    print(
+        f"  Full trace length: {full_trace_len}, remaining after context: {expected_target}"
+    )
+
+    # Test 3: Custom target length (128)
+    print("\n--- Test 3: Custom target length (128) ---")
+    pool_128 = create_example_pool(exclude_ids=test_ids, target_length=128)
+    print(f"  Pool size: {len(pool_128)}")
+    print(
+        f"  Example lengths: ctx={len(pool_128[0].context)}, tgt={len(pool_128[0].target)}"
+    )
 
     # Verify no test IDs in pool
-    pool_ids = {ex.trace_id for ex in pool}
+    pool_ids = {ex.trace_id for ex in pool_64}
     assert not (pool_ids & test_ids), "Test IDs found in example pool!"
-    print("✓ No test set leakage")
+    print("\n✓ No test set leakage")
 
     # Test random selection
     k = 3
-    examples1 = select_examples_random(pool, k=k, seed=42)
-    examples2 = select_examples_random(pool, k=k, seed=42)
-    assert [e.trace_id for e in examples1] == [
-        e.trace_id for e in examples2
-    ], "Reproducibility failed!"
+    examples1 = select_examples_random(pool_64, k=k, seed=42)
+    examples2 = select_examples_random(pool_64, k=k, seed=42)
+    assert [e.trace_id for e in examples1] == [e.trace_id for e in examples2], (
+        "Reproducibility failed!"
+    )
     print(f"✓ Random selection reproducible (k={k})")
     print(f"  Selected IDs: {[e.trace_id for e in examples1]}")
 
-    # Test context-target formatting
+    # Test context-target formatting (standard 64)
     query_context = np.random.randn(80).astype(np.float32)
     icl_context = format_context_target_pairs(examples1, query_context)
     expected_length = k * (80 + 64) + 80
-    assert (
-        icl_context.shape[0] == expected_length
-    ), f"ICL context length mismatch: {icl_context.shape[0]} != {expected_length}"
-    print(f"✓ ICL context formatting correct (length: {icl_context.shape[0]})")
+    assert icl_context.shape[0] == expected_length, (
+        f"ICL context length mismatch: {icl_context.shape[0]} != {expected_length}"
+    )
+    print(
+        f"✓ ICL context formatting correct (standard, length: {icl_context.shape[0]})"
+    )
 
-    print("\nAll tests passed!")
+    # Test context-target formatting (full traces)
+    examples_full = select_examples_random(pool_full, k=k, seed=42)
+    icl_context_full = format_context_target_pairs(examples_full, query_context)
+    expected_length_full = k * (80 + expected_target) + 80
+    assert icl_context_full.shape[0] == expected_length_full, (
+        f"ICL context length mismatch: {icl_context_full.shape[0]} != {expected_length_full}"
+    )
+    print(
+        f"✓ ICL context formatting correct (full, length: {icl_context_full.shape[0]})"
+    )
+
+    print("\n✅ All tests passed!")
