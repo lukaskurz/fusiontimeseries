@@ -11,7 +11,7 @@ __all__ = ["FTSConfig"]
 T_OP = Literal["shat", "q", "rlt", "rln"]
 OP_NAMES: list[T_OP] = ["shat", "q", "rlt", "rln"]
 FLUX_DATA_PATH: Path = (
-    Path(".").resolve().parent.parent.parent.parent / "data" / "flux_data.json"
+    Path(__file__).resolve().parent.parent.parent.parent / "data" / "flux_data.json"
 )
 assert FLUX_DATA_PATH.exists() and FLUX_DATA_PATH.is_file(), (
     f"No file at {FLUX_DATA_PATH}"
@@ -24,6 +24,10 @@ class FTSConfig(BaseModel):
     op_embedding_dim: int = 512
     num_ops: int = 4
     context_length: int = 512
+    start_context_timestamp: int = 40  # the timestamp at which the context starts; this is used to determine the range of timestamps to sample from for the context
+    train_context_cutoffs: list[int] = Field(
+        default_factory=lambda: [1, 70, 139]
+    )  # the cutoff timestamps to use for training; these are the timestamps at which the context ends and the target starts; this is used to determine the range of timestamps to sample from for the target during training
     prediction_length: int = 80
     batch_size: int = 128
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
@@ -47,14 +51,14 @@ class FTSConfig(BaseModel):
     pred_tail_timestamps: Literal[80] = 80
     subsample_factor: Literal[3] = 3
     full_subsampling: bool = True  # subsample all in-between windows
-    stratification: Literal["tail_mean", "opc_pca"] = "opc_pca"
-    sampling_strategy: Literal["linear", "pca_cluster"] = "linear"
+    stratification: Literal["tail_mean", "opc_pca"] | None = None
+    sampling_strategy: Literal["linear", "pca_cluster", "tail_mean"] = "linear"
     data_augmentation: Literal["white_noise", "random_walk"] | None = None
     drop_ids: list[int] = Field(default_factory=list)
     data_path: Path = FLUX_DATA_PATH
 
     learning_rate: float = 1e-4
-    lr_scheduler_type: Literal["linear"] = "linear"
+    lr_scheduler_type: Literal["linear", "constant"] = "linear"
     lr_scheduler_warmup_ratio: float = 0.0
     optimizer_type: Literal["adamw_torch_fused"] = "adamw_torch_fused"
     max_grad_norm: float = 1.0  # default in Trainer as well.
@@ -71,4 +75,10 @@ class FTSConfig(BaseModel):
         """
 
         with open(path, "w") as f:
-            json.dump(self.model_dump(exclude={"data_path"}), f, indent=4)
+            json.dump(self.model_dump(exclude={"data_path", "dtype"}), f, indent=4)
+
+    class Config:
+        """Pydantic config for FTSConfig"""
+
+        extra = "forbid"
+        arbitrary_types_allowed = True

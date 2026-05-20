@@ -9,7 +9,52 @@ import torch.nn.utils.parametrize as parametrize
 from transformers import Conv1D
 
 import math
-from typing import List
+from typing import List, Any
+
+
+from fusiontimeseries.lib.conditioning import ConditionRegistry
+from fusiontimeseries.lib.modules import ContinuousConditionEmbed
+
+
+def expand_like(target: torch.Tensor, like: torch.Tensor) -> torch.Tensor:
+    """
+    Expands the target tensor to have the same shape as the like tensor,
+    by adding singleton dimensions where necessary.
+
+    Args:
+        target (torch.Tensor): (B, ..., N), The tensor to be expanded.
+        like (torch.Tensor): (..., B, ..., N, ...), The tensor whose shape is to be matched.
+
+    Returns:
+        torch.Tensor: The expanded tensor.
+    """
+    assert target.ndim >= 2, (
+        "Target tensor must have at least 2 dimensions (batch and feature)"
+    )
+    assert target.ndim <= like.ndim, (
+        "Target tensor cannot have more dimensions than 'like' tensor"
+    )
+
+    batch_size = target.shape[0]
+    feature_size = target.shape[-1]
+
+    batch_dim_in_like = (torch.tensor(like.shape) == batch_size).nonzero(as_tuple=True)[
+        0
+    ]
+
+    if len(batch_dim_in_like) == 0:
+        raise RuntimeError(
+            f"Could not find batch size {batch_size} in tensor 'like' of shape {like.shape}"
+        )
+
+    # 2. Create a view of target that aligns with 'like'
+    # We want target to be 1s everywhere except the batch dim and the feature dim
+    new_shape = [1] * like.ndim
+    new_shape[batch_dim_in_like[0]] = batch_size
+    new_shape[-1] = feature_size
+
+    exp_target = target.view(*new_shape)
+    return exp_target
 
 
 class LoRALayer:
@@ -68,6 +113,7 @@ class LoRALayer:
         # names_to_exclude=None,
         target_module_names: list[str] | None = None,
         name: str | None = None,
+        **kwargs: Any,
     ):
         assert kind in layer_dict, (
             f"unknown LoRA layer kind {kind}, Possible choices: [LoRA, VeRA, DoRA, LoRAM]"
@@ -78,13 +124,14 @@ class LoRALayer:
                 name is not None
                 and any([target_name in name for target_name in target_module_names])
             ):
-                print(f"Converting module: {name} to LoRA layer")
+                # print(f"Converting module: {name} to LoRA layer")
                 module_output = layer_dict[kind](
                     in_features=module.in_features,
                     out_features=module.out_features,
                     bias=module.bias is not None,
                     r=lora_rank,
                     lora_alpha=lora_alpha,
+                    **kwargs,
                 )
                 module_output.weight = module.weight
                 module_output.bias = module.bias
@@ -97,6 +144,7 @@ class LoRALayer:
                     r=lora_rank,
                     lora_alpha=lora_alpha,
                     fan_in_fan_out=True,
+                    **kwargs,
                 )
                 module_output.weight = module.weight
                 module_output.bias = module.bias
@@ -109,6 +157,7 @@ class LoRALayer:
                     lora_rank=lora_rank,
                     target_module_names=target_module_names,
                     name=child_name if name is None else f"{name}.{child_name}",
+                    **kwargs,
                 ),
             )
         del module
@@ -188,6 +237,9 @@ class Embedding(nn.Embedding, LoRALayer):
 
 
 class Linear(nn.Linear, LoRALayer):
+    # Class-level shared projection (will be set once for all instances)
+    _shared_p_projection: ContinuousConditionEmbed | None = None
+
     # LoRA implemented in a dense layer
     def __init__(
         self,
@@ -203,6 +255,7 @@ class Linear(nn.Linear, LoRALayer):
         pre_batch_norm: bool = False,
         **kwargs,
     ):
+        self.dtype = kwargs.get("dtype", torch.float32)
         nn.Linear.__init__(self, in_features, out_features, **kwargs)
         LoRALayer.__init__(
             self,
@@ -231,8 +284,12 @@ class Linear(nn.Linear, LoRALayer):
     def _init_lora(self, r):
         # Actual trainable parameters
         if r > 0:
-            self.lora_A = nn.Parameter(self.weight.new_zeros((r, self.in_features)))
-            self.lora_B = nn.Parameter(self.weight.new_zeros((self.out_features, r)))
+            self.lora_A = nn.Parameter(self.weight.new_zeros((r, self.in_features))).to(
+                self.dtype
+            )
+            self.lora_B = nn.Parameter(
+                self.weight.new_zeros((self.out_features, r))
+            ).to(self.dtype)
             self.scaling = self.lora_alpha / r
         else:
             try:
@@ -706,9 +763,320 @@ class Conv3d(ConvLoRA):
         super(Conv3d, self).__init__(nn.Conv3d, *args, **kwargs)
 
 
+# Operating Parameter Conditioning Adapters
+
+OP_PARAM_KEY: str = "op_params"
+
+
+class BilinearLoRA(nn.Linear, LoRALayer):
+    # Class-level shared projection (will be set once for all instances)
+    _shared_p_projection: ContinuousConditionEmbed | None = None
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        r: int = 0,
+        lora_alpha: int = 1,
+        lora_dropout: float = 0.0,
+        fan_in_fan_out: bool = False,
+        merge_weights: bool = False,  # keep false due to conditioning
+        post_layer_norm: bool = False,
+        pre_batch_norm: bool = False,
+        **kwargs,
+    ):
+        nn.Linear.__init__(self, in_features, out_features, **kwargs)
+        LoRALayer.__init__(
+            self,
+            r=r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            merge_weights=merge_weights,
+        )
+
+        self.fan_in_fan_out = fan_in_fan_out
+        self.in_features = in_features
+        self.out_features = out_features
+        self.post_layer_norm = post_layer_norm
+        self.pre_batch_norm = pre_batch_norm
+
+        self.lora_scale = self.lora_alpha / r
+        self.p_dim = 512
+
+        self._init_lora(r)
+        self.reset_parameters()
+        if fan_in_fan_out:
+            self.weight.data = self.weight.data.transpose(0, 1)
+        if self.post_layer_norm:
+            self.post_ln = nn.LayerNorm(out_features)
+            self.merge_weights = False
+        if self.pre_batch_norm:
+            self.pre_bn = nn.BatchNorm1d(in_features, affine=False)
+            self.merge_weights = False
+
+    def _init_lora(self, r):
+        # Actual trainable parameters
+        if r > 0:
+            self.lora_A = nn.Parameter(self.weight.new_zeros((r, self.in_features)))
+            self.lora_B = nn.Parameter(self.weight.new_zeros((self.out_features, r)))
+            self.lora_C = nn.Parameter(self.weight.new_zeros((r, self.p_dim)))
+        else:
+            try:
+                # ensure parameters do not exist if they are zero
+                delattr(self, "lora_A")
+                delattr(self, "lora_B")
+                delattr(self, "lora_C")
+                delattr(self, "lora_scale")
+            except AttributeError:
+                pass
+        self.weight.requires_grad = False
+        self.r = r
+
+    def reset_parameters(self):
+        nn.Linear.reset_parameters(self)
+        # initialize A the same way as the default for nn.Linear and B to zero
+        # adapt to initialization via PCA on pretrained weights
+        if hasattr(self, "lora_C"):
+            nn.init.kaiming_uniform_(self.lora_C, a=math.sqrt(5))
+        if hasattr(self, "lora_A"):
+            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+        if hasattr(self, "lora_B"):
+            nn.init.zeros_(self.lora_B)
+
+    def change_lora_rank(self, new_rank):
+        if new_rank != self.r:
+            self._init_lora(new_rank)
+
+    def train(self, mode: bool = True):
+        def T(w):
+            return w.transpose(0, 1) if self.fan_in_fan_out else w
+
+        nn.Linear.train(self, mode)
+        if mode:
+            if self.merge_weights and self.merged:
+                # Make sure that the weights are not merged
+                if self.r > 0:
+                    self.weight.data -= T(self.lora_B @ self.lora_A) * self.lora_scale
+                self.merged = False
+        else:
+            if self.merge_weights and not self.merged:
+                # Merge the weights and mark it
+                if self.r > 0:
+                    self.weight.data += T(self.lora_B @ self.lora_A) * self.lora_scale
+                self.merged = True
+
+    def forward(self, x: torch.Tensor):
+        """
+        Args:
+            x (torch.Tensor): (B, ..., in_features)
+        """
+
+        def T(w):
+            return w.transpose(0, 1) if self.fan_in_fan_out else w
+
+        # Base linear projection
+        y_base = F.linear(x, T(self.weight), bias=self.bias)  # (B, ..., out_features)
+        if self.pre_batch_norm:
+            x = self.pre_bn(x)
+
+        if self.r > 0 and not self.merged:
+            p: torch.Tensor | None = ConditionRegistry.get(OP_PARAM_KEY)
+            if p is not None and self._shared_p_projection is not None:
+                p = p.to(self.lora_C.device)
+
+                # Learnable representation of p: (B, p_dim)
+                p_repr: torch.Tensor = self._shared_p_projection(p)
+
+                # condition projection: (B, r) = (B, p_dim) @ (r, p_dim).T
+                c = F.linear(p_repr, self.lora_C)
+
+                # input projection: (B, ..., r) = ( (B, ..., in_features) @ (r, in_features).T )
+                h = F.linear(self.lora_dropout(x), self.lora_A)
+
+                # Bilinear modulation in rank space
+                h_mod = h * (1.0 + expand_like(target=c, like=h))
+
+                # Project back to output space
+                delta_y = (
+                    F.linear(h_mod, self.lora_B) * self.lora_scale
+                )  # (B, ..., out_features)
+                y_base += delta_y
+
+            else:
+                raise RuntimeError(
+                    "Operating parameters not found or _shared_p_projection is None during forward pass."
+                )
+
+            if self.post_layer_norm:
+                y_base = self.post_ln(y_base)
+
+        return y_base
+
+
+class RSSBilinearLoRA(nn.Linear, LoRALayer):
+    # Class-level shared projection (will be set once for all instances)
+    _shared_p_projection: ContinuousConditionEmbed | None = None
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        r: int = 0,
+        lora_alpha: int = 1,
+        lora_dropout: float = 0.0,
+        fan_in_fan_out: bool = False,
+        merge_weights: bool = False,  # keep false due to conditioning
+        post_layer_norm: bool = False,
+        pre_batch_norm: bool = False,
+        **kwargs,
+    ):
+        nn.Linear.__init__(self, in_features, out_features, **kwargs)
+        LoRALayer.__init__(
+            self,
+            r=r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            merge_weights=merge_weights,
+        )
+
+        self.fan_in_fan_out = fan_in_fan_out
+        self.in_features = in_features
+        self.out_features = out_features
+        self.post_layer_norm = post_layer_norm
+        self.pre_batch_norm = pre_batch_norm
+
+        self.lora_scale = self.lora_alpha / r
+        self.p_dim = 512
+
+        self._init_lora(r)
+        self.reset_parameters()
+        if fan_in_fan_out:
+            self.weight.data = self.weight.data.transpose(0, 1)
+        if self.post_layer_norm:
+            self.post_ln = nn.LayerNorm(out_features)
+            self.merge_weights = False
+        if self.pre_batch_norm:
+            self.pre_bn = nn.BatchNorm1d(in_features, affine=False)
+            self.merge_weights = False
+
+    def _init_lora(self, r):
+        # Actual trainable parameters
+        if r > 0:
+            self.lora_A = nn.Parameter(self.weight.new_zeros((r, self.in_features)))
+            self.lora_B = nn.Parameter(self.weight.new_zeros((self.out_features, r)))
+            self.lora_C = nn.Parameter(self.weight.new_zeros((r, self.p_dim)))
+            self.lora_S = nn.Parameter(self.weight.new_zeros((r, self.p_dim)))
+        else:
+            try:
+                # ensure parameters do not exist if they are zero
+                delattr(self, "lora_A")
+                delattr(self, "lora_B")
+                delattr(self, "lora_C")
+                delattr(self, "lora_S")
+                delattr(self, "lora_scale")
+            except AttributeError:
+                pass
+        self.weight.requires_grad = False
+        self.r = r
+
+    def reset_parameters(self):
+        nn.Linear.reset_parameters(self)
+        # initialize A the same way as the default for nn.Linear and B to zero
+        # adapt to initialization via PCA on pretrained weights
+        if hasattr(self, "lora_C"):
+            nn.init.kaiming_uniform_(self.lora_C, a=math.sqrt(5))
+        if hasattr(self, "lora_S"):
+            nn.init.zeros_(self.lora_S)
+        if hasattr(self, "lora_A"):
+            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+        if hasattr(self, "lora_B"):
+            nn.init.zeros_(self.lora_B)
+
+    def change_lora_rank(self, new_rank):
+        if new_rank != self.r:
+            self._init_lora(new_rank)
+
+    def train(self, mode: bool = True):
+        def T(w):
+            return w.transpose(0, 1) if self.fan_in_fan_out else w
+
+        nn.Linear.train(self, mode)
+        if mode:
+            if self.merge_weights and self.merged:
+                # Make sure that the weights are not merged
+                if self.r > 0:
+                    self.weight.data -= T(self.lora_B @ self.lora_A) * self.lora_scale
+                self.merged = False
+        else:
+            if self.merge_weights and not self.merged:
+                # Merge the weights and mark it
+                if self.r > 0:
+                    self.weight.data += T(self.lora_B @ self.lora_A) * self.lora_scale
+                self.merged = True
+
+    def forward(self, x: torch.Tensor):
+        """
+        Args:
+            x (torch.Tensor): (B, ..., in_features)
+        """
+
+        def T(w):
+            return w.transpose(0, 1) if self.fan_in_fan_out else w
+
+        # Base linear projection
+        y_base = F.linear(x, T(self.weight), bias=self.bias)  # (B, ..., out_features)
+        if self.pre_batch_norm:
+            x = self.pre_bn(x)
+
+        if self.r > 0 and not self.merged:
+            p: torch.Tensor | None = ConditionRegistry.get(OP_PARAM_KEY)
+            if p is not None and self._shared_p_projection is not None:
+                p = p.to(self.lora_C.device)
+
+                # Learnable representation of p: (B, p_dim)
+                p_repr: torch.Tensor = self._shared_p_projection(p)
+
+                # condition projection: (B, r) = (B, p_dim) @ (r, p_dim).T
+                c = F.linear(p_repr, self.lora_C)
+
+                # rank_space_shift: (B, r) = (B, p_dim) @ (r, p_dim).T
+                s = F.linear(p_repr, self.lora_S)
+
+                # input projection: (B, ..., r) = ( (B, ..., in_features) @ (r, in_features).T )
+                h = F.linear(self.lora_dropout(x), self.lora_A)
+
+                # introduce shift gate
+                # only activate gate when x activates that rank direction
+                # s_gate = torch.sigmoid(h.norm(dim=-1, keepdim=True))
+
+                # Bilinear FiLM-inspired modulation in rank space
+                # (B, ..., r)
+                h_mod = h * (1.0 + expand_like(target=c, like=h)) + expand_like(
+                    target=s, like=h
+                )
+
+                # Project back to output space
+                # (B, ..., out_features) = ( (B, ..., r) @ (out_features, r).T )
+                delta_y = F.linear(h_mod, self.lora_B) * self.lora_scale
+                y_base += delta_y
+
+            else:
+                raise RuntimeError(
+                    "Operating parameters not found or _shared_p_projection is None during forward pass."
+                )
+
+            if self.post_layer_norm:
+                y_base = self.post_ln(y_base)
+
+        return y_base
+
+
+# Register shared projection
 layer_dict = {
-    "LoRA": Linear,
+    "Linear": Linear,
     "VeRA": VeRALinear,
     "DoRA": DoRALinear,
     "LoRAM": LoRAMLinear,
+    "BilinearLoRA": BilinearLoRA,
+    "RSSBilinearLoRA": RSSBilinearLoRA,
 }

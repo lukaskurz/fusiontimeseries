@@ -8,11 +8,11 @@ __all__ = ["ConditionRegistry"]
 class ConditionRegistry:
     """A simple store for per-sample parameters."""
 
-    _condition_params: dict[str, torch.Tensor] = {}
+    _condition_params: dict[str, torch.Tensor | None] = {}
 
     @classmethod
     @contextmanager
-    def patch(cls, **kwargs: torch.Tensor):
+    def patch(cls, **kwargs: torch.Tensor | None):
         for k, v in kwargs.items():
             cls._condition_params[k] = v
         try:

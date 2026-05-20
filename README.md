@@ -87,3 +87,27 @@ Zero-shot performance across five time-series foundation models.
       url={https://arxiv.org/abs/2510.07314},
 }
 ```
+
+
+Ruff check
+
+# repos:
+#   - repo: https://github.com/astral-sh/ruff-pre-commit
+#     rev: v0.15.0
+#     hooks:
+#       - id: ruff-check
+#         args: ["--fix"]
+#       - id: ruff-format
+
+#   - repo: https://github.com/kynan/nbstripout
+#     rev: 0.9.0
+#     hooks:
+#       - id: nbstripout
+#         args:
+#           ["--extra-keys=metadata.celltoolbar cell.metadata.heading_collapsed"]
+
+#   - repo: https://github.com/pre-commit/pre-commit-hooks
+#     rev: v6.0.0
+#     hooks:
+#       - id: end-of-file-fixer
+#       - id: trailing-whitespace

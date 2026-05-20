@@ -13,47 +13,6 @@ from typing import Dict
 from .layers import LoRALayer, DoRALinear, LoRAMLinear
 
 
-def expand_like(target: torch.Tensor, like: torch.Tensor) -> torch.Tensor:
-    """
-    Expands the target tensor to have the same shape as the like tensor,
-    by adding singleton dimensions where necessary.
-
-    Args:
-        target (torch.Tensor): (B, ..., N), The tensor to be expanded.
-        like (torch.Tensor): (..., B, ..., N, ...), The tensor whose shape is to be matched.
-
-    Returns:
-        torch.Tensor: The expanded tensor.
-    """
-    assert target.ndim >= 2, (
-        "Target tensor must have at least 2 dimensions (batch and feature)"
-    )
-    assert target.ndim <= like.ndim, (
-        "Target tensor cannot have more dimensions than 'like' tensor"
-    )
-
-    batch_size = target.shape[0]
-    feature_size = target.shape[-1]
-
-    batch_dim_in_like = (torch.tensor(like.shape) == batch_size).nonzero(as_tuple=True)[
-        0
-    ]
-
-    if len(batch_dim_in_like) == 0:
-        raise RuntimeError(
-            f"Could not find batch size {batch_size} in tensor 'like' of shape {like.shape}"
-        )
-
-    # 2. Create a view of target that aligns with 'like'
-    # We want target to be 1s everywhere except the batch dim and the feature dim
-    new_shape = [1] * like.ndim
-    new_shape[batch_dim_in_like[0]] = batch_size
-    new_shape[-1] = feature_size
-
-    exp_target = target.view(*new_shape)
-    return exp_target
-
-
 def mark_only_lora_as_trainable(model: nn.Module, bias: str = "none") -> None:
     for n, p in model.named_parameters():
         if "lora_" not in n:
@@ -200,7 +159,7 @@ def print_trainable_parameters(model: nn.Module, save_path: Path | None = None) 
         if param.requires_grad:
             trainable_params += param.numel()
             param_info[name] = param.numel()
-            print(f"{name}: {param.numel():,}")
+            # print(f"{name}: {param.numel():,}")
 
     summary = {
         "trainable_params": trainable_params,

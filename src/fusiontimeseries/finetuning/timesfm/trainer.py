@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from transformers import Trainer, TrainingArguments
 from timesfm.pytorch_patched_decoder import PatchedTimeSeriesDecoder
 
@@ -61,7 +62,6 @@ class TimesFMTrainer(Trainer):
         p_raw: torch.Tensor | None = inputs.pop(
             "operating_parameters", None
         )  # remove before forward, otherwise TypeError in Trainer
-        assert p_raw is not None, "operating_parameters key is missing in inputs"
 
         input_ts: torch.Tensor = inputs["context"]
         target_ts: torch.Tensor = inputs["future_target"]
@@ -84,8 +84,11 @@ class TimesFMTrainer(Trainer):
                     last_patch_quantile, target_ts.squeeze(-1), quantile
                 )
             )
-            # print("quantile", quantile, "mean", last_patch_quantile.mean().item(), "loss", quantile_loss.item())
             quantile_losses.append(quantile_loss)
 
-        loss = torch.mean(torch.stack(quantile_losses))
+        # target_ts (batch_size, pred_len)
+        # predictions (batch_size, num_patches, pred_len, 1 + num_quantiles)
+        mse_loss = F.mse_loss(predictions[:, -1, :, 0], target_ts)
+
+        loss = torch.mean(torch.stack(quantile_losses)) + mse_loss
         return (loss, predictions) if return_outputs else loss

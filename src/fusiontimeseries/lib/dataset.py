@@ -17,6 +17,22 @@ from fusiontimeseries.lib.config import OP_NAMES, T_OP, FTSConfig
 
 
 ID_BENCHMARK_IDXS: list[int] = [8, 115, 131, 148, 235, 262]
+ID_VALIDATION_IDXS: list[int] = [13, 100, 200]
+# training_trajectories: iteration_{0-7,9-12,14-99,101-114,116-130,132-147,149-199,201-234,236-261,263-299}.h5
+TRAIN_IDXS = set(
+    [
+        *list(range(0, 8)),
+        *list(range(9, 13)),
+        *list(range(14, 100)),
+        *list(range(101, 115)),
+        *list(range(116, 131)),
+        *list(range(132, 148)),
+        *list(range(149, 200)),
+        *list(range(201, 235)),
+        *list(range(236, 262)),
+        *list(range(263, 300)),
+    ]
+)
 
 
 @dataclass
@@ -38,6 +54,14 @@ class FluxData:
         return self.distribution == "ood" or self.idx in ID_BENCHMARK_IDXS
 
     @property
+    def is_validation(self) -> bool:
+        return self.distribution == "id" and self.idx in ID_VALIDATION_IDXS
+
+    @property
+    def is_train(self) -> bool:
+        return self.distribution == "id" and self.idx in TRAIN_IDXS
+
+    @property
     def operating_parameters(self) -> NDArray:
         return np.array([self.shat, self.q, self.rlt, self.rln])
 
@@ -50,59 +74,6 @@ class FluxData:
         return FluxData(**new_data)
 
 
-def get_train_flux_traces(
-    flux_data: list[FluxData],
-    subsample_factor: int,
-    full_subsampling: bool,
-    drop_ids: list[int] = [],
-) -> dict[int, FluxData]:
-    """Get all valid and subsampled flux traces.
-
-    Args:
-        full_subsampling (bool, optional): Whether to use subsampling for all windows. Defaults to False.
-
-    Returns:
-        dict[int, np.ndarray]: The dictionary of flux traces.
-    """
-    HORIZON: int = 240  # head and tail length to consider for mean flux
-
-    valid_flux_traces: dict[int, FluxData] = {}
-    incremental_idx: int = 0
-    for _flux_data in flux_data:
-        _flux_data: FluxData
-
-        # filter out benchmark traces
-        if _flux_data.is_benchmark or _flux_data.idx in drop_ids:
-            continue
-
-        flux: NDArray[np.float32] = np.array(_flux_data.energy_flux, dtype=np.float32)
-
-        # Step 1: Check mean flux at head and tail
-        mean_head: float = float(np.mean(flux[:HORIZON]))
-        mean_tail: float = float(np.mean(flux[-HORIZON:]))
-        if not (1.0 <= mean_head <= np.inf) or not (1.0 <= mean_tail <= np.inf):
-            continue
-
-        # Step 2: Subsample
-        subsampled_flux: FluxData = _flux_data.copy(
-            energy_flux=flux[::subsample_factor].tolist(), idx=incremental_idx
-        )
-        if full_subsampling:
-            for partial in range(1, subsample_factor + 1):
-                idx: int = (incremental_idx + 1) * subsample_factor - partial
-                valid_flux_traces[idx] = subsampled_flux.copy(
-                    idx=idx,
-                    energy_flux=flux[
-                        partial % subsample_factor :: subsample_factor
-                    ].tolist(),
-                )
-        else:
-            valid_flux_traces[incremental_idx] = subsampled_flux
-        incremental_idx += 1
-
-    return valid_flux_traces
-
-
 class FTSDataProcessingMixin:
     def __init__(self, *args: Any, **kwargs: Any) -> None: ...
 
@@ -111,6 +82,7 @@ class FTSDataProcessingMixin:
         flux_data: dict[int, FluxData],
         config: FTSConfig,
     ):
+        print("Stratifying by mean energy flux in the tail.")
         # stratify all flux data time series by mean energy flux
         energy_flux_means: list[np.floating] = [
             np.mean(flux_data.energy_flux[-config.pred_tail_timestamps :])
@@ -138,6 +110,7 @@ class FTSDataProcessingMixin:
         flux_data: dict[int, FluxData],
         config: FTSConfig,
     ):
+        print("Stratifying by operating parameters using PCA + KMeans.")
         opcs: np.ndarray = np.array(
             [flux_data.operating_parameters for flux_data in flux_data.values()]
         )
@@ -158,25 +131,108 @@ class FTSDataProcessingMixin:
         )
         return train_flux_data, val_flux_data
 
-    @classmethod
-    def load_flux_data(cls, config: FTSConfig) -> list[FluxData]:
+    @staticmethod
+    def stratify_by_original_val_set(
+        flux_data: dict[int, FluxData],
+        _: FTSConfig,
+    ):
+        print("Using original validation set for stratification.")
+        train_flux_data: list[FluxData] = []
+        val_flux_data: list[FluxData] = []
+        for sample in flux_data.values():
+            if sample.idx in ID_VALIDATION_IDXS:
+                val_flux_data.append(sample)
+            else:
+                train_flux_data.append(sample)
+        return train_flux_data, val_flux_data
+
+    @staticmethod
+    def load_flux_data(config: FTSConfig) -> list[FluxData]:
+        """Returns 306 Flux samples, including all benchmark and validation samples.
+
+        Args:
+            config (FTSConfig): _description_
+
+        Returns:
+            list[FluxData]: _description_
+        """
         _flux_data: list[FluxData] = [
             FluxData(**sample) for sample in json.load(open(config.data_path, "r"))
         ]
         return _flux_data
+
+    @staticmethod
+    def filter_nonturbulent_flux(
+        flux_data: dict[int, FluxData],
+    ) -> dict[int, FluxData]:
+        """Filter out non-turbulent flux traces based on mean flux at head and tail, and drop any traces with ids in drop_ids.
+
+        Args:
+            flux_data (list[FluxData]): The list of all flux data.
+
+        Returns:
+            dict[int, FluxData]: The dictionary of valid flux data.
+        """
+
+        valid_flux_data: dict[int, FluxData] = {}
+        for _flux_data in flux_data.values():
+            _flux_data: FluxData
+            flux: NDArray[np.float32] = np.array(
+                _flux_data.energy_flux, dtype=np.float32
+            )
+
+            # Check mean flux at head and tail
+            mean_head: float = float(np.mean(flux[:240]))
+            mean_tail: float = float(np.mean(flux[-240:]))
+            if 1.0 <= mean_head <= np.inf and 1.0 <= mean_tail <= np.inf:
+                valid_flux_data[_flux_data.idx] = _flux_data
+
+        return valid_flux_data
+
+    @staticmethod
+    def subsample_flux_data(
+        flux_data: list[FluxData],
+        window: int,
+        stride: int = 1,
+    ) -> list[FluxData]:
+        """Subsample the flux data by the given factor.
+
+        Args:
+            flux_data (list[FluxData]): The list of flux data to subsample.
+            window (int): The factor by which to subsample the flux data.
+            stride (int): The stride to use for subsampling.
+
+        Returns:
+            list[FluxData]: The list of subsampled flux data.
+        """
+        assert stride <= window, "Stride must be less than or equal to window size."
+        assert stride >= 1, "Stride must be at least 1."
+
+        subsampled_flux_data: list[FluxData] = []
+        for _flux_data in flux_data:
+            for partial in range(0, window, stride):
+                subsampled_flux_data.append(
+                    _flux_data.copy(
+                        energy_flux=_flux_data.energy_flux[partial::window],
+                    )
+                )
+
+        return subsampled_flux_data
 
     @classmethod
     def train_val_split(
         cls,
         config: FTSConfig,
     ) -> tuple[Self, Self]:
-        _flux_data: list[FluxData] = cls.load_flux_data(config)
+        flux_data: list[FluxData] = cls.load_flux_data(config)
 
-        flux_data: dict[int, FluxData] = get_train_flux_traces(
-            flux_data=_flux_data,
-            full_subsampling=config.full_subsampling,
-            subsample_factor=config.subsample_factor,
-            drop_ids=config.drop_ids,
+        train_val_data = {
+            entry.idx: entry
+            for entry in flux_data
+            if entry.is_train or entry.is_validation
+        }
+        filtered_flux_data: dict[int, FluxData] = cls.filter_nonturbulent_flux(
+            flux_data=train_val_data,
         )
 
         strat_fn: Callable[
@@ -188,11 +244,21 @@ class FTSDataProcessingMixin:
                 strat_fn = cls.stratify_by_mean
             case "opc_pca":
                 strat_fn = cls.stratify_by_opc_pca_kmeans
-            case _:
-                raise ValueError(
-                    f"Unknown stratification method: {config.stratification}"
-                )
-        train_flux_data, val_flux_data = strat_fn(flux_data, config)
+            case _:  # base setting
+                strat_fn = cls.stratify_by_original_val_set
+
+        train_flux_data, val_flux_data = strat_fn(filtered_flux_data, config)
+
+        train_flux_data = cls.subsample_flux_data(
+            flux_data=train_flux_data,
+            window=config.subsample_factor,
+            stride=1 if config.full_subsampling else config.subsample_factor,
+        )
+        val_flux_data = cls.subsample_flux_data(
+            flux_data=val_flux_data,
+            window=config.subsample_factor,
+            stride=config.subsample_factor,  # no subsampling for validation traces
+        )
         print(
             f"Train/Val split: {len(train_flux_data)} / {len(val_flux_data)} time series."
         )
@@ -232,31 +298,27 @@ class FTSDataProcessingMixin:
             dict[str, dict[int, FluxData]]: The dictionary of benchmark flux traces with shape (266,).
         """
 
+        flux_data = cls.load_flux_data(config)
+
+        test_data = [entry for entry in flux_data if entry.is_benchmark]
+
+        subsampled_test_data = cls.subsample_flux_data(
+            flux_data=test_data,
+            window=config.subsample_factor,
+            stride=config.subsample_factor,  # no overlap for benchmark traces
+        )
+
         benchmark_flux_traces: dict[Literal["ood", "id"], dict[int, FluxData]] = {}
-        _flux_data = cls.load_flux_data(config)
-
-        id_flux_traces: list[FluxData] = [
-            entry
-            for entry in _flux_data
-            if entry.distribution == "id" and entry.is_benchmark
-        ]
         benchmark_flux_traces["id"] = {
-            flux_data.idx: flux_data.copy(
-                energy_flux=flux_data.energy_flux[:: config.subsample_factor]
-            )
-            for flux_data in id_flux_traces
+            entry.idx: entry
+            for entry in subsampled_test_data
+            if entry.distribution == "id"
         }
-
-        ood_flux_traces: list[FluxData] = [
-            entry for entry in _flux_data if entry.distribution == "ood"
-        ]
         benchmark_flux_traces["ood"] = {
-            flux_data.idx: flux_data.copy(
-                energy_flux=flux_data.energy_flux[:: config.subsample_factor]
-            )
-            for flux_data in ood_flux_traces
+            entry.idx: entry
+            for entry in subsampled_test_data
+            if entry.distribution == "ood"
         }
-
         return benchmark_flux_traces
 
 
