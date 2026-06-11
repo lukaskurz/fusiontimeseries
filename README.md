@@ -138,6 +138,14 @@ The same pre-trained models, but provided with $k$ example traces (80-timestep c
 - 🔄 **Improvements transfer to OOD**: ~61% ID / ~55% OOD average reduction at k=5
 - 💡 In-context examples recover a large share of finetuning's gains (see below) **without any gradient updates**
 
+#### Example selection: random vs retrieval vs oracle
+
+Phase 2 replaces random example selection with informed retrieval (`benchmarking/few_shot/selection.py`): operating-parameter kNN (`op_knn`), context-similarity NN (`ctx_euclid` / `ctx_dtw` / `ctx_growth`), a diversity-aware MMR variant (`mmr_euclid`), and a label-aware *cheating* oracle (`oracle_tail`) as headroom diagnostic — full grid (7 strategies × k ∈ {1,3,5,10} × 4 models, random = 20 seeds) in `results/few_shot_v2_selection/`, table + significance tests in [docs/results/fewshot/selection_table.md](docs/results/fewshot/selection_table.md).
+
+![Example selection](docs/results/fewshot/selection_random_vs_retrieval_vs_oracle.png)
+
+**Finding**: under the current presentation format (flat concatenation, per-example z-scoring), informed retrieval does **not** beat 20-seed random selection in-distribution — every bootstrap CI straddles zero, and even the cheating oracle is no better than random ID for 3 of 4 models (only Chronos-Bolt at k=1 shows clear headroom: 28.76 ID). Since each example is z-scored independently, its absolute saturation *level* — the very signal retrieval matches on — never reaches the model; this hands off directly to Phase 3's shared-scaling ablation. Out-of-distribution, retrieval gives small but consistent gains (bootstrap-significant for TimesFM, e.g. op_knn +3.2 RMSE vs random, and Chronos-2 ctx_euclid +3.2). On Fabian's question — operating-parameter kNN does **not** beat context similarity anywhere (on TiRex ID, ctx_euclid is significantly better than op_knn: Δ = 4.75, bootstrap CI [1.5, 10.2], Wilcoxon p = 0.031), i.e. the 80-step context already encodes the regime information the parameters would provide.
+
 ### 4. Finetuning Results
 
 *by Severin Bergsmann*

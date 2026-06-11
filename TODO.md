@@ -99,7 +99,7 @@ subsequent phase reports through this harness. ✅
 
 ---
 
-## Phase 2 — Retrieval-based example selection  ← Fabian's explicit ask
+## Phase 2 — Retrieval-based example selection ✅ (2026-06-11) ← Fabian's explicit ask
 
 **Goal**: replace random example selection with informed retrieval and
 quantify the gain. Core scientific contribution of the few-shot side.
@@ -110,25 +110,32 @@ what the metric measures. Active literature to cite/frame against:
 [RAF](https://arxiv.org/pdf/2411.08249), [TS-RAG](https://arxiv.org/pdf/2503.07649),
 [TimeRAF](https://arxiv.org/pdf/2412.20810), [RAFT](https://arxiv.org/pdf/2511.05859).
 
-**Tasks** (new `select_examples_*` functions beside `select_examples_random`):
-- [ ] `select_examples_op_knn`: k nearest in normalized OP space
-      (needs Phase 0).
-- [ ] `select_examples_context_nn`: k nearest by query-context similarity —
-      try (a) Euclidean on z-scored context, (b) DTW, (c) linear-phase
-      growth-rate feature (physics-motivated scalar; theory links growth
-      rate to saturation amplitude).
-- [ ] `select_examples_oracle`: cheating selection minimizing test error —
-      upper bound / headroom estimate (clearly marked as diagnostic).
-- [ ] Optional: diversity-aware variant (max-marginal-relevance between
-      similarity and diversity).
-- [ ] Run the grid: {random, op_knn, context_nn × 3 distances, oracle} ×
-      {k = 1, 3, 5, 10} × 4 models, through the Phase-1 harness.
-- [ ] Analysis: does op_knn beat context_nn? (If equal → context already
-      encodes the parameters; if op wins → motivates parameter conditioning.)
+**Tasks** (all in `few_shot/selection.py`; SelectFn registry `make_select_fn`,
+most-similar example placed LAST, adjacent to the query):
+- [x] `select_examples_op_knn`: k nearest in normalized OP space — 244
+      candidates after filtering the one params-less pool example.
+- [x] `select_examples_context_nn`: (a) Euclidean on z-scored context
+      (verified identical to kNN-copy's neighbours), (b) numpy-DP DTW with
+      optional Sakoe-Chiba band, (c) growth-rate feature (log-linear fit up
+      to the overshoot peak; recovers synthetic γ within ~2%).
+- [x] `select_examples_oracle` (`oracle_tail`): NOT clearly better than
+      random on ID for 3 of 4 models (only Bolt k=1: 28.76 ID) →
+      per-example z-scoring hides the level signal the oracle matches on —
+      hands off to Phase 3's shared-scaling ablation.
+- [x] MMR variant (`mmr_euclid`, λ=0.5): best Bolt retrieval config of the
+      grid (30.23 ID at k=10).
+- [x] Grid: 7 strategies × k ∈ {1,3,5,10} × 4 models (+ k=0 anchors),
+      random = 20 seeds → `results/few_shot_v2_selection/` (116 files);
+      runner `few_shot/run_selection_grid.py`.
+- [x] Analysis (`few_shot/analyze_selection.py` → `docs/results/fewshot/`):
+      **op_knn does NOT beat context_nn** (TiRex ID: ctx_euclid better by
+      4.75, bootstrap CI [1.5, 10.2], Wilcoxon p=0.031) → the context
+      already encodes the parameters; retrieval ≈ random on ID, small but
+      consistent OOD gains (bootstrap-significant for TimesFM & Chronos-2).
 
-**Deliverable**: selection-strategy results table + significance tests;
-the random-vs-retrieval-vs-oracle plot. Likely the headline figure for the
-few-shot chapter.
+**Deliverable**: selection-strategy results table + significance tests
+(`docs/results/fewshot/selection_table.md`); the random-vs-retrieval-vs-
+oracle plot (`docs/results/fewshot/selection_random_vs_retrieval_vs_oracle.png`). ✅
 
 ---
 
@@ -253,7 +260,7 @@ Phase 1 (harness)     ──┘            └── Phase 4 (covariates) ─┘
 | ------- | ----- | ---------- | ------------- |
 | 1a      | Phase 0 — OP plumbing ✅ | — | 1b |
 | 1b      | Phase 1 — harness ✅ | — | 1a |
-| 2a      | Phase 2 — retrieval | 0, 1 | 2b, 2c |
+| 2a      | Phase 2 — retrieval ✅ | 0, 1 | 2b, 2c |
 | 2b      | Phase 3 — presentation format | 1 | 2a, 2c |
 | 2c      | Phase 4 — covariate conditioning | 0, 1 | 2a, 2b |
 | 3       | Phase 5 — analysis | 2–4 | — |

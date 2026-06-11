@@ -73,7 +73,13 @@ src/fusiontimeseries/
 │       ├── harness.py         # run_benchmark (multi-seed), paired_comparison,
 │       │                      #   make_icl_forecast_fn, load_results/results_table
 │       ├── baselines.py       # persistence / pool tail-mean / kNN-copy
-│       ├── rerun_ksweep.py    # fixed-pool re-run of the old k-sweeps
+│       ├── selection.py       # Phase-2 retrieval strategies: STRATEGIES,
+│       │                      #   make_select_fn (op_knn / ctx_euclid / ctx_dtw /
+│       │                      #   ctx_growth / oracle_tail / mmr_euclid)
+│       ├── rerun_ksweep.py    # fixed-pool re-run of the old k-sweeps; also
+│       │                      #   MODEL_SLUGS + PREDICT_FACTORIES model wrappers
+│       ├── run_selection_grid.py  # Phase-2 grid: strategy x k x model
+│       ├── analyze_selection.py   # grid analysis -> docs/results/fewshot/
 │       └── *_fewshot_benchmark.ipynb
 ├── zeroshot/                  # Upstream's zero-shot notebooks (v1.0.0)
 ├── finetuning/
@@ -97,7 +103,8 @@ src/fusiontimeseries/
 playground/                    # Quick demo notebooks (utils.py has plot_forecast)
 docs/
 ├── methods/                   # BilinearLoRA / OSS / RSS method docs
-├── results/                   # zeroshot + finetuning result plots
+├── results/                   # zeroshot + fewshot + finetuning result plots
+│   └── fewshot/               # Phase-2 selection table + figures
 ├── report/, poster/
 └── installation.md
 data/
@@ -199,7 +206,7 @@ big `data/flux_data.json` dump via `lib/config.py:FLUX_DATA_PATH`.
 6. No automated tests exist. Smoke tests after changes:
    `uv run --no-sync python -c "from fusiontimeseries.benchmarking.zero_shot.benchmark_utils import BenchmarkDataProvider; print(BenchmarkDataProvider().get_id('iteration_8_ifft').shape)"`
    (expect `torch.Size([266])`), plus the module self-tests
-   (`python -m fusiontimeseries.benchmarking.few_shot.{operating_params,few_shot_utils,harness,baselines}`).
+   (`python -m fusiontimeseries.benchmarking.few_shot.{operating_params,few_shot_utils,harness,baselines,selection}`).
 
 ---
 
@@ -209,7 +216,12 @@ See `README.md` for the full, current tables: upstream's zero-shot results
 (TiRex best: ID 79.49 ± 14.38), our few-shot ICL results (fixed-pool re-run
 2026-06-11; best: Chronos-Bolt-Tiny k=10 at ID 30.65 / OOD 34.62, dirs
 `results/few_shot_v2*`), model-free baselines (kNN-copy k=5: ID 34.98), and
-upstream's finetuning results. `docs/results/` has plots; `docs/methods/`
+upstream's finetuning results. Phase-2 example-selection grid
+(`results/few_shot_v2_selection/`, analysis in
+`docs/results/fewshot/selection_table.md`): retrieval does NOT beat random
+on ID (even the cheating oracle doesn't, for 3/4 models — per-example
+z-scoring hides the level signal → Phase 3); small consistent OOD gains;
+op_knn does not beat context-NN. `docs/results/` has plots; `docs/methods/`
 documents the Bilinear/OSS/RSS LoRA variants.
 
 ---
@@ -228,5 +240,6 @@ after resolving `pyproject.toml`.
 ---
 
 **Last Updated**: 2026-06-11 (Phase 0/1: operating-params mapping, pool
-leakage fix, evaluation harness, baselines, fixed-pool k-sweep re-runs)
+leakage fix, evaluation harness, baselines, fixed-pool k-sweep re-runs;
+Phase 2: retrieval-based example selection — selection.py, grid + analysis)
 **Upstream Maintainer**: Severin Bergsmann (sbergsmann)
