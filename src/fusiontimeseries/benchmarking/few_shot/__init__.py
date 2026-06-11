@@ -29,6 +29,15 @@ from .harness import (
     results_table,
     run_benchmark,
 )
+from .presentation import (
+    NORMALIZATIONS,
+    ORDERS,
+    make_chronos2_group_forecast_fn,
+    make_concat_forecast_fn,
+    make_ordered_select_fn,
+    make_truncated_select_fn,
+    truncate_example,
+)
 from .selection import (
     STRATEGIES,
     dtw_distance,
@@ -95,4 +104,12 @@ __all__ = [
     "select_examples_context_nn",
     "select_examples_oracle",
     "select_examples_mmr",
+    # presentation
+    "NORMALIZATIONS",
+    "ORDERS",
+    "make_concat_forecast_fn",
+    "make_chronos2_group_forecast_fn",
+    "make_ordered_select_fn",
+    "make_truncated_select_fn",
+    "truncate_example",
 ]
