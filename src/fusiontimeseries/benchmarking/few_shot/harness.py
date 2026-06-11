@@ -100,8 +100,10 @@ class ForecastFn(Protocol):
 class SelectFn(Protocol):
     """Example-selection strategy.
 
-    ``query_context`` makes the signature ready for Phase-2 retrieval-based
-    selection; random selection ignores it.
+    ``query_context`` serves context-similarity retrieval; ``query_key`` is
+    the benchmark trace key (e.g. ``"iteration_8_ifft"``) for strategies that
+    need the query's identity (operating-param kNN, oracle). Random selection
+    ignores both.
     """
 
     def __call__(
@@ -110,6 +112,7 @@ class SelectFn(Protocol):
         k: int,
         seed: int,
         query_context: NDArray[np.float32],
+        query_key: str,
     ) -> list[FewShotExample]: ...
 
 
@@ -118,6 +121,7 @@ def _select_random(
     k: int,
     seed: int,
     query_context: NDArray[np.float32],
+    query_key: str,
 ) -> list[FewShotExample]:
     """Default SelectFn: seeded random selection (ignores the query)."""
     return select_examples_random(pool, k=k, seed=seed)
@@ -301,8 +305,10 @@ def run_benchmark(
         select_fn: Example-selection strategy; defaults to seeded random.
         seeds: Example-selection seeds; one full pass over all 11 traces per
             seed.
-        deterministic: For runs without stochastic example selection
-            (baselines, k=0): collapses to a single pass with no examples.
+        deterministic: Collapses ``seeds`` to a single pass — for runs whose
+            example selection does not depend on the seed (deterministic
+            retrieval strategies, baselines, k=0). Selection still runs
+            (unless ``k_shot == 0``); only the seed loop is skipped.
         provider: Benchmark data provider (created if omitted).
         save_dir: Output directory (default: results/few_shot_v2/).
         save: Whether to write the results JSON.
@@ -329,10 +335,12 @@ def run_benchmark(
             for trace_key in trace_keys:
                 trace = getter(trace_key).numpy()
                 query_context = trace[: config.start_context_length]
-                if deterministic or config.k_shot == 0:
+                if config.k_shot == 0:
                     examples: list[FewShotExample] = []
                 else:
-                    examples = select_fn(example_pool, config.k_shot, seed, query_context)
+                    examples = select_fn(
+                        example_pool, config.k_shot, seed, query_context, trace_key
+                    )
                 example_ids[trace_key] = [ex.trace_id for ex in examples]
 
                 forecast = forecast_fn(trace, examples, config)
@@ -620,6 +628,40 @@ if __name__ == "__main__":
         f"OOD {results.out_of_distribution.rmse:.2f} ± "
         f"{results.out_of_distribution.se_rmse:.2f}"
     )
+
+    # deterministic=True must still run example selection (only collapse seeds)
+    selector_calls = {"n": 0}
+
+    def counting_select(
+        pool: list[FewShotExample],
+        k: int,
+        seed: int,
+        query_context: NDArray[np.float32],
+        query_key: str,
+    ) -> list[FewShotExample]:
+        selector_calls["n"] += 1
+        assert query_key, "query_key must be passed to the selector"
+        return select_examples_random(pool, k=k, seed=seed)
+
+    det_results = run_benchmark(
+        forecast_fn=constant_forecast,
+        config=config,
+        example_pool=pool,
+        method="smoke_deterministic_selection",
+        select_fn=counting_select,
+        seeds=(0, 1),
+        deterministic=True,
+        save=False,
+    )
+    assert det_results.n_seeds == 1, "deterministic must collapse to one seed"
+    assert selector_calls["n"] == 11, (
+        f"Selector must run once per trace (11), got {selector_calls['n']}"
+    )
+    assert all(
+        len(ids) == config.k_shot
+        for ids in det_results.per_seed[0].example_ids.values()
+    ), "deterministic runs with k_shot>0 must record selected example ids"
+    print("✓ deterministic=True: 1 seed, selection still runs (11 calls, k=2 ids recorded)")
 
     # ICL rollout with a trivial PredictFn: shapes + context passthrough
     def last_value_predict(context: NDArray[np.float32], prediction_length: int) -> NDArray[np.float32]:
