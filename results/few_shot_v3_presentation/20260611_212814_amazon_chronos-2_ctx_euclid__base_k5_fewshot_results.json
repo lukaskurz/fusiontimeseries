@@ -1,0 +1,222 @@
+{
+  "timestamp": "20260611_212814",
+  "method": "amazon_chronos-2_ctx_euclid__base",
+  "config": {
+    "device": "mps",
+    "model_slug": "amazon/chronos-2",
+    "model_prediction_length": 64,
+    "relevant_prediction_tail": 80,
+    "start_context_length": 80,
+    "k_shot": 5,
+    "random_seed": 42,
+    "example_format": "context_target_pairs",
+    "example_target_length": null,
+    "presentation": "concat",
+    "normalization": "per_example",
+    "example_order": "similar_last",
+    "example_truncation_margin": null
+  },
+  "seeds": [
+    42
+  ],
+  "n_seeds": 1,
+  "deterministic": true,
+  "in_distribution": {
+    "rmse": 41.26581852663293,
+    "se_rmse": 10.283092901507278,
+    "n_samples": 6,
+    "rmse_std_seeds": null,
+    "rmse_min": 41.26581852663293,
+    "rmse_max": 41.26581852663293
+  },
+  "out_of_distribution": {
+    "rmse": 39.160814858032566,
+    "se_rmse": 16.652843771132208,
+    "n_samples": 5,
+    "rmse_std_seeds": null,
+    "rmse_min": 39.160814858032566,
+    "rmse_max": 39.160814858032566
+  },
+  "per_seed": [
+    {
+      "seed": 42,
+      "example_ids": {
+        "iteration_8_ifft": [
+          166,
+          76,
+          208,
+          268,
+          239
+        ],
+        "iteration_115_ifft": [
+          0,
+          268,
+          71,
+          107,
+          275
+        ],
+        "iteration_131_ifft": [
+          266,
+          162,
+          174,
+          58,
+          161
+        ],
+        "iteration_148_ifft": [
+          162,
+          238,
+          149,
+          286,
+          74
+        ],
+        "iteration_235_ifft": [
+          144,
+          196,
+          231,
+          133,
+          251
+        ],
+        "iteration_262_ifft": [
+          267,
+          187,
+          218,
+          125,
+          154
+        ],
+        "ood_iteration_0_ifft_realpotens": [
+          154,
+          75,
+          236,
+          182,
+          132
+        ],
+        "ood_iteration_1_ifft_realpotens": [
+          127,
+          214,
+          269,
+          230,
+          179
+        ],
+        "ood_iteration_2_ifft_realpotens": [
+          184,
+          234,
+          2,
+          75,
+          161
+        ],
+        "ood_iteration_3_ifft_realpotens": [
+          136,
+          180,
+          253,
+          105,
+          243
+        ],
+        "ood_iteration_4_ifft_realpotens": [
+          113,
+          278,
+          103,
+          233,
+          251
+        ]
+      },
+      "in_distribution": {
+        "rmse": 41.26581852663293,
+        "se_rmse": 10.283092901507278
+      },
+      "out_of_distribution": {
+        "rmse": 39.160814858032566,
+        "se_rmse": 16.652843771132208
+      },
+      "per_trace": [
+        {
+          "trace_key": "iteration_8_ifft",
+          "true_tail_mean": 146.24581909179688,
+          "pred_tail_mean": 73.77485656738281,
+          "error": -72.47096252441406,
+          "abs_error": 72.47096252441406,
+          "squared_error": 5252.0404092150275
+        },
+        {
+          "trace_key": "iteration_115_ifft",
+          "true_tail_mean": 74.91597747802734,
+          "pred_tail_mean": 67.28150177001953,
+          "error": -7.6344757080078125,
+          "abs_error": 7.6344757080078125,
+          "squared_error": 58.28521933616139
+        },
+        {
+          "trace_key": "iteration_131_ifft",
+          "true_tail_mean": 142.0397491455078,
+          "pred_tail_mean": 99.45787048339844,
+          "error": -42.581878662109375,
+          "abs_error": 42.581878662109375,
+          "squared_error": 1813.2163903946057
+        },
+        {
+          "trace_key": "iteration_148_ifft",
+          "true_tail_mean": 70.38298034667969,
+          "pred_tail_mean": 61.1373291015625,
+          "error": -9.245651245117188,
+          "abs_error": 9.245651245117188,
+          "squared_error": 85.482066946337
+        },
+        {
+          "trace_key": "iteration_235_ifft",
+          "true_tail_mean": 113.45405578613281,
+          "pred_tail_mean": 100.7036361694336,
+          "error": -12.750419616699219,
+          "abs_error": 12.750419616699219,
+          "squared_error": 162.57320040190825
+        },
+        {
+          "trace_key": "iteration_262_ifft",
+          "true_tail_mean": 145.94931030273438,
+          "pred_tail_mean": 92.60505676269531,
+          "error": -53.34425354003906,
+          "abs_error": 53.34425354003906,
+          "squared_error": 2845.60938574397
+        },
+        {
+          "trace_key": "ood_iteration_0_ifft_realpotens",
+          "true_tail_mean": 65.9598617553711,
+          "pred_tail_mean": 69.47630310058594,
+          "error": 3.5164413452148438,
+          "abs_error": 3.5164413452148438,
+          "squared_error": 12.36535973433638
+        },
+        {
+          "trace_key": "ood_iteration_1_ifft_realpotens",
+          "true_tail_mean": 72.21946716308594,
+          "pred_tail_mean": 78.86106872558594,
+          "error": 6.6416015625,
+          "abs_error": 6.6416015625,
+          "squared_error": 44.11087131500244
+        },
+        {
+          "trace_key": "ood_iteration_2_ifft_realpotens",
+          "true_tail_mean": 101.17436981201172,
+          "pred_tail_mean": 86.95848083496094,
+          "error": -14.215888977050781,
+          "abs_error": 14.215888977050781,
+          "squared_error": 202.0914994078339
+        },
+        {
+          "trace_key": "ood_iteration_3_ifft_realpotens",
+          "true_tail_mean": 184.3267364501953,
+          "pred_tail_mean": 158.2395477294922,
+          "error": -26.087188720703125,
+          "abs_error": 26.087188720703125,
+          "squared_error": 680.5414153495803
+        },
+        {
+          "trace_key": "ood_iteration_4_ifft_realpotens",
+          "true_tail_mean": 156.22792053222656,
+          "pred_tail_mean": 74.19903564453125,
+          "error": -82.02888488769531,
+          "abs_error": 82.02888488769531,
+          "squared_error": 6728.737955918768
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,222 @@
+{
+  "timestamp": "20260611_212829",
+  "method": "amazon_chronos-2_oracle_tail__base",
+  "config": {
+    "device": "mps",
+    "model_slug": "amazon/chronos-2",
+    "model_prediction_length": 64,
+    "relevant_prediction_tail": 80,
+    "start_context_length": 80,
+    "k_shot": 5,
+    "random_seed": 42,
+    "example_format": "context_target_pairs",
+    "example_target_length": null,
+    "presentation": "concat",
+    "normalization": "per_example",
+    "example_order": "similar_last",
+    "example_truncation_margin": null
+  },
+  "seeds": [
+    42
+  ],
+  "n_seeds": 1,
+  "deterministic": true,
+  "in_distribution": {
+    "rmse": 41.910551641511454,
+    "se_rmse": 9.522361811065668,
+    "n_samples": 6,
+    "rmse_std_seeds": null,
+    "rmse_min": 41.910551641511454,
+    "rmse_max": 41.910551641511454
+  },
+  "out_of_distribution": {
+    "rmse": 42.37033094510086,
+    "se_rmse": 15.656144223320815,
+    "n_samples": 5,
+    "rmse_std_seeds": null,
+    "rmse_min": 42.37033094510086,
+    "rmse_max": 42.37033094510086
+  },
+  "per_seed": [
+    {
+      "seed": 42,
+      "example_ids": {
+        "iteration_8_ifft": [
+          218,
+          295,
+          278,
+          192,
+          258
+        ],
+        "iteration_115_ifft": [
+          159,
+          231,
+          241,
+          186,
+          167
+        ],
+        "iteration_131_ifft": [
+          110,
+          145,
+          196,
+          121,
+          113
+        ],
+        "iteration_148_ifft": [
+          141,
+          268,
+          232,
+          174,
+          208
+        ],
+        "iteration_235_ifft": [
+          124,
+          236,
+          292,
+          193,
+          244
+        ],
+        "iteration_262_ifft": [
+          295,
+          218,
+          278,
+          192,
+          258
+        ],
+        "ood_iteration_0_ifft_realpotens": [
+          151,
+          200,
+          60,
+          132,
+          178
+        ],
+        "ood_iteration_1_ifft_realpotens": [
+          159,
+          208,
+          137,
+          232,
+          130
+        ],
+        "ood_iteration_2_ifft_realpotens": [
+          247,
+          290,
+          127,
+          251,
+          135
+        ],
+        "ood_iteration_3_ifft_realpotens": [
+          163,
+          105,
+          216,
+          230,
+          189
+        ],
+        "ood_iteration_4_ifft_realpotens": [
+          275,
+          128,
+          253,
+          177,
+          143
+        ]
+      },
+      "in_distribution": {
+        "rmse": 41.910551641511454,
+        "se_rmse": 9.522361811065668
+      },
+      "out_of_distribution": {
+        "rmse": 42.37033094510086,
+        "se_rmse": 15.656144223320815
+      },
+      "per_trace": [
+        {
+          "trace_key": "iteration_8_ifft",
+          "true_tail_mean": 146.24581909179688,
+          "pred_tail_mean": 78.331787109375,
+          "error": -67.91403198242188,
+          "abs_error": 67.91403198242188,
+          "squared_error": 4612.315740109421
+        },
+        {
+          "trace_key": "iteration_115_ifft",
+          "true_tail_mean": 74.91597747802734,
+          "pred_tail_mean": 57.4965705871582,
+          "error": -17.41940689086914,
+          "abs_error": 17.41940689086914,
+          "squared_error": 303.4357364296593
+        },
+        {
+          "trace_key": "iteration_131_ifft",
+          "true_tail_mean": 142.0397491455078,
+          "pred_tail_mean": 107.19422912597656,
+          "error": -34.84552001953125,
+          "abs_error": 34.84552001953125,
+          "squared_error": 1214.2102654315531
+        },
+        {
+          "trace_key": "iteration_148_ifft",
+          "true_tail_mean": 70.38298034667969,
+          "pred_tail_mean": 61.330970764160156,
+          "error": -9.052009582519531,
+          "abs_error": 9.052009582519531,
+          "squared_error": 81.93887748202542
+        },
+        {
+          "trace_key": "iteration_235_ifft",
+          "true_tail_mean": 113.45405578613281,
+          "pred_tail_mean": 90.69535827636719,
+          "error": -22.758697509765625,
+          "abs_error": 22.758697509765625,
+          "squared_error": 517.9583123410121
+        },
+        {
+          "trace_key": "iteration_262_ifft",
+          "true_tail_mean": 145.94931030273438,
+          "pred_tail_mean": 84.2313461303711,
+          "error": -61.71796417236328,
+          "abs_error": 61.71796417236328,
+          "squared_error": 3809.1071015811176
+        },
+        {
+          "trace_key": "ood_iteration_0_ifft_realpotens",
+          "true_tail_mean": 65.9598617553711,
+          "pred_tail_mean": 67.02652740478516,
+          "error": 1.0666656494140625,
+          "abs_error": 1.0666656494140625,
+          "squared_error": 1.1377756076399237
+        },
+        {
+          "trace_key": "ood_iteration_1_ifft_realpotens",
+          "true_tail_mean": 72.21946716308594,
+          "pred_tail_mean": 93.19940948486328,
+          "error": 20.979942321777344,
+          "abs_error": 20.979942321777344,
+          "squared_error": 440.1579798251041
+        },
+        {
+          "trace_key": "ood_iteration_2_ifft_realpotens",
+          "true_tail_mean": 101.17436981201172,
+          "pred_tail_mean": 94.74951934814453,
+          "error": -6.4248504638671875,
+          "abs_error": 6.4248504638671875,
+          "squared_error": 41.278703483054414
+        },
+        {
+          "trace_key": "ood_iteration_3_ifft_realpotens",
+          "true_tail_mean": 184.3267364501953,
+          "pred_tail_mean": 223.1021270751953,
+          "error": 38.775390625,
+          "abs_error": 38.775390625,
+          "squared_error": 1503.530918121338
+        },
+        {
+          "trace_key": "ood_iteration_4_ifft_realpotens",
+          "true_tail_mean": 156.22792053222656,
+          "pred_tail_mean": 72.62098693847656,
+          "error": -83.60693359375,
+          "abs_error": 83.60693359375,
+          "squared_error": 6990.119344949722
+        }
+      ]
+    }
+  ]
+}
