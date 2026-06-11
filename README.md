@@ -67,16 +67,27 @@ Pre-trained time-series foundation models applied out of the box — no training
 
 *by Lukas Kurz*
 
-The same pre-trained models, but provided with $k$ example traces (80-timestep context + 64-timestep target pairs, randomly sampled from the 246-trace training pool, test traces excluded) at inference time — still **no finetuning, no gradient updates**.
+The same pre-trained models, but provided with $k$ example traces (80-timestep context followed by the full remaining trace as target, randomly sampled from the 245-trace training pool, test traces excluded) at inference time — still **no finetuning, no gradient updates**.
+
+> **Note (2026-06-11)**: these tables come from a re-run after fixing an example-pool bug: the original pool excluded pool *positions* instead of trace ids, so near-duplicate twins of all six ID test traces remained selectable as examples. The earlier published numbers (e.g. TiRex k=5 at 42.33 ID, with 64-step example targets) were flattered by this — that configuration is 66.32 ID with the fixed pool. Zero-shot (k=0) numbers are unaffected. Tables below: fixed pool, full-length example targets (`results/few_shot_v2_t266/`); the re-run of the old 64-step-target protocol is in `results/few_shot_v2_t80/`.
 
 **Best configuration per model:**
 
-| Model                           | k   | ID RMSE (↓)    | OOD RMSE (↓)    | Improvement vs Zero-Shot |
-| ------------------------------- | --- | -------------- | --------------- | ------------------------ |
-| **NX-AI/TiRex**                 | 5   | **42.33 ± 8.95** | **33.89 ± 14.03** | **46.4% ID / 45.8% OOD** |
-| google/timesfm-2.5-200m-pytorch | 5   | 45.04 ± 8.87   | 39.71 ± 17.04   | 53.8% ID / 54.7% OOD     |
-| amazon/chronos-2                | 5   | 46.77 ± 8.98   | 41.05 ± 17.06   | 57.4% ID / 52.2% OOD     |
-| amazon/chronos-bolt-tiny        | 1   | 69.15 ± 10.77  | 57.05 ± 16.68   | 38.1% ID / 37.1% OOD     |
+| Model                           | k   | ID RMSE (↓)      | OOD RMSE (↓)      | Improvement vs Zero-Shot |
+| ------------------------------- | --- | ---------------- | ----------------- | ------------------------ |
+| **amazon/chronos-bolt-tiny**    | 10  | **30.65 ± 8.64** | **34.62 ± 13.36** | **72.6% ID / 61.8% OOD** |
+| NX-AI/TiRex                     | 10  | 37.78 ± 8.64     | 36.49 ± 15.59     | 52.1% ID / 41.6% OOD     |
+| google/timesfm-2.5-200m-pytorch | 10  | 39.34 ± 8.37     | 35.68 ± 15.92     | 59.7% ID / 59.3% OOD     |
+| amazon/chronos-2                | 5   | 40.36 ± 8.56     | 36.35 ± 16.65     | 63.3% ID / 57.7% OOD     |
+
+**Model-free baselines** (same metric, same fixed pool — `benchmarking/few_shot/baselines.py`):
+
+| Baseline                          | ID RMSE (↓)   | OOD RMSE (↓)  |
+| --------------------------------- | ------------- | ------------- |
+| Persistence (last context value)  | 50.91 ± 10.98 | 47.07 ± 17.41 |
+| Training-pool tail-mean           | 38.65 ± 6.17  | 51.54 ± 14.72 |
+| kNN-copy (k=1, context distance)  | 44.24 ± 12.33 | 36.94 ± 10.91 |
+| kNN-copy (k=5)                    | 34.98 ± 11.11 | 39.54 ± 8.10  |
 
 <details>
 <summary><b>Full k-shot learning curves</b> (k = 0, 1, 3, 5, 10)</summary>
@@ -85,45 +96,46 @@ The same pre-trained models, but provided with $k$ example traces (80-timestep c
 | k   | ID RMSE | OOD RMSE | ID Δ%  | OOD Δ% |
 | --- | ------- | -------- | ------ | ------ |
 | 0   | 109.91  | 85.86    | —      | —      |
-| 1   | 75.69   | 61.60    | -31.1% | -28.3% |
-| 3   | 53.60   | 46.71    | -51.2% | -45.6% |
-| 5   | 46.77   | 41.05    | -57.4% | -52.2% |
-| 10  | 49.96   | 43.44    | -54.5% | -49.4% |
+| 1   | 49.04   | 40.03    | -55.4% | -53.4% |
+| 3   | 43.78   | 38.68    | -60.2% | -54.9% |
+| 5   | 40.36   | 36.35    | -63.3% | -57.7% |
+| 10  | 48.82   | 41.51    | -55.6% | -51.7% |
 
 **TimesFM-2.5:**
 | k   | ID RMSE | OOD RMSE | ID Δ%  | OOD Δ% |
 | --- | ------- | -------- | ------ | ------ |
 | 0   | 97.54   | 87.70    | —      | —      |
-| 1   | 81.88   | 69.55    | -16.1% | -20.7% |
-| 3   | 57.50   | 47.83    | -41.0% | -45.5% |
-| 5   | 45.04   | 39.71    | -53.8% | -54.7% |
-| 10  | 50.61   | 43.53    | -48.1% | -50.4% |
+| 1   | 45.16   | 38.89    | -53.7% | -55.7% |
+| 3   | 42.50   | 37.82    | -56.4% | -56.9% |
+| 5   | 39.58   | 36.67    | -59.4% | -58.2% |
+| 10  | 39.34   | 35.68    | -59.7% | -59.3% |
 
 **TiRex:**
 | k   | ID RMSE | OOD RMSE | ID Δ%  | OOD Δ% |
 | --- | ------- | -------- | ------ | ------ |
 | 0   | 78.92   | 62.49    | —      | —      |
-| 1   | 69.36   | 52.79    | -12.1% | -15.5% |
-| 3   | 50.05   | 39.71    | -36.6% | -36.5% |
-| 5   | 42.33   | 33.89    | -46.4% | -45.8% |
+| 1   | 43.61   | 38.60    | -44.7% | -38.2% |
+| 3   | 39.66   | 36.46    | -49.7% | -41.6% |
+| 5   | 38.54   | 36.50    | -51.2% | -41.6% |
+| 10  | 37.78   | 36.49    | -52.1% | -41.6% |
 
 **Chronos-Bolt-Tiny:**
 | k   | ID RMSE | OOD RMSE | ID Δ%  | OOD Δ% |
 | --- | ------- | -------- | ------ | ------ |
 | 0   | 111.65  | 90.69    | —      | —      |
-| 1   | 69.15   | 57.05    | -38.1% | -37.1% |
-| 3   | 68.78   | 58.71    | -38.4% | -35.3% |
-| 5   | 71.99   | 62.68    | -35.5% | -30.9% |
-| 10  | 67.76   | 55.64    | -39.3% | -38.7% |
+| 1   | 50.86   | 44.77    | -54.4% | -50.6% |
+| 3   | 40.68   | 36.95    | -63.6% | -59.3% |
+| 5   | 34.50   | 35.62    | -69.1% | -60.7% |
+| 10  | 30.65   | 34.62    | -72.6% | -61.8% |
 
 </details>
 
 **Key findings:**
 
-- 🎯 **TiRex at k=5 achieves the best training-free result**: 42.33 ID / 33.89 OOD RMSE — better than every paper baseline except the full GyroSwin-1B, at zero training cost
-- 📈 **k=5 is the sweet spot** for the larger models (TiRex, TimesFM, Chronos-2); k=10 degrades performance
-- ⚡ **Chronos-Bolt-Tiny saturates at k=1** — more examples need more model capacity
-- 🔄 **Improvements transfer to OOD**: few-shot gains are nearly identical in- and out-of-distribution (~48% ID / ~46% OOD average reduction at k=5)
+- 🎯 **Chronos-Bolt-Tiny at k=10 achieves the best training-free result**: 30.65 ID / 34.62 OOD RMSE — better than every paper baseline except the full GyroSwin-1B, at zero training cost
+- 📈 **More examples keep helping up to k=10** for Bolt, TiRex and TimesFM; only Chronos-2 peaks at k=5. (The previously reported k=10 degradation and "Bolt saturates at k=1" were artifacts of the leaky pool and the 64-step example targets.)
+- 🆚 **Retrieval alone is a strong baseline**: model-free kNN-copy (k=5) reaches 34.98 ID — much of the few-shot gain is saturation-level calibration, and only Bolt at k=10 clearly beats it ID (the TSFMs do beat the baselines OOD)
+- 🔄 **Improvements transfer to OOD**: ~61% ID / ~55% OOD average reduction at k=5
 - 💡 In-context examples recover a large share of finetuning's gains (see below) **without any gradient updates**
 
 ### 4. Finetuning Results

@@ -16,7 +16,7 @@ Best result so far: TiRex k=5 at 42.33 ID / 33.89 OOD RMSE. Supervisor input
 
 ---
 
-## Phase 0 — Data plumbing: operating parameters for the example pool
+## Phase 0 — Data plumbing: operating parameters for the example pool ✅ (2026-06-11)
 
 **Goal**: make the four operating parameters (q, ŝ, R/L_T, R/L_N) accessible
 for every trace in our few-shot example pool and for the 11 test traces.
@@ -28,27 +28,43 @@ under re-coded keys (`gyroswin_train` = 1000+, `gyroswin_id` = 3000+,
 `gyroswin_ood` = 4000+, plus `batch_1..10`).
 
 **Tasks**:
-- [ ] Verify the mapping between raw iteration IDs (0–299) and
-      `flux_data.json` keys (match subsampled `energy_flux` values against
-      our traces; the 6 ID test traces [8, 115, 131, 148, 235, 262] should
-      match `gyroswin_id/3000..3005`).
-- [ ] Add `operating_params` (dict or tuple) to `FewShotExample` in
-      `few_shot_utils.py`; populate in `create_example_pool()`.
-- [ ] Expose params for the 11 benchmark traces (extend
-      `BenchmarkDataProvider` or a small lookup helper).
-- [ ] Normalize params with the ranges in `lib/config.py`
-      (`shat: (0,5), q: (1,9), rlt: (3.5,12), rln: (0,7)`) — reuse, don't
-      re-derive.
-- [ ] Smoke test: print params for one train + one ID + one OOD trace and
-      sanity-check against Severin's PCA-KMeans clustering notes
-      (docs/report).
+- [x] Verify the mapping between raw iteration IDs (0–300) and
+      `flux_data.json` keys — done by exact value-matching in
+      `few_shot/operating_params.py`; persisted as the tracked
+      `operating_params_mapping.json` (iteration_8 ↔ gyroswin_id/3003 etc.;
+      dump keys are PERMUTED vs raw ids, 1000+i ≠ raw i).
+- [x] Add `operating_params` (dict) to `FewShotExample` in
+      `few_shot_utils.py`; populated in `create_example_pool()`
+      (244/245 pool examples covered — one valid raw trace has no dump
+      entry; the 5 OOD dump entries have no raw counterpart. Phase-2
+      op-kNN must filter `operating_params is None`).
+- [x] Expose params for the 11 benchmark traces
+      (`get_params_for_benchmark_trace()` in `operating_params.py`).
+- [x] Normalize params with the ranges in `lib/config.py`
+      (`normalize_params()` reuses `FTSConfig().op_ranges`).
+- [x] Smoke test: `python -m ...few_shot.operating_params` prints params for
+      one train + one ID + one OOD trace; normalized values land in [0,1].
 
 **Deliverable**: example pool and test traces carry operating parameters;
-a verified ID↔key mapping documented in code.
+a verified ID↔key mapping documented in code. ✅
+
+**⚠️ Side discovery — test-set leakage (fixed)**: `create_example_pool`'s
+`exclude_ids` excluded *pool positions*, but `get_valid_flux_traces()` keys
+traces by an incremental counter over valid traces. All six ID test traces'
+twins (raw 8/115/131/148/235/262 = pool indices 3/65/81/98/185/212) stayed in
+the example pool, and position 262 was a silent no-op (pool size 246, not
+245). Fixed: `exclude_ids` is now interpreted as raw ids via the mapping; the
+old k-sweeps were re-run with the fixed pool (see README note). Would have
+been fatal for Phase-2 kNN retrieval.
+
+**⚠️ For Severin**: the old AutoGluon finetuning split
+(`create_train_and_test_flux_ts_dataframes` in
+`finetuning/preprocessing/utils.py`) excludes *nothing* — the six ID test
+traces are part of its training pool too.
 
 ---
 
-## Phase 1 — Evaluation harness: seeds, significance, baselines
+## Phase 1 — Evaluation harness: seeds, significance, baselines ✅ (2026-06-11)
 
 **Goal**: a rigorous comparison harness so every later phase produces
 trustworthy numbers.
@@ -58,23 +74,28 @@ selection. Single-seed RMSE differences of a few points are likely noise.
 Also on the project-wide TODO list: baselines and statistical testing.
 
 **Tasks**:
-- [ ] Multi-seed evaluation: run each configuration over ~20 example-sampling
-      seeds; report mean ± std across seeds (in addition to the per-trace SE).
-- [ ] Paired significance tests between strategies: Wilcoxon signed-rank /
-      paired bootstrap over per-trace errors (same traces, same seeds).
-- [ ] Simple baselines, evaluated with the exact benchmark metric
-      (RMSE of time-averaged tail, last 80 steps):
-  - [ ] Persistence (repeat last context value)
-  - [ ] Training-pool tail-mean (predict the global mean saturation level)
-  - [ ] kNN-copy: retrieve nearest training trace (by context distance) and
-        copy its tail — retrieval without any TSFM. This bounds what
-        retrieval alone achieves and competes with the paper's GPR (43.8 ID).
-- [ ] Persist results as JSON (one file per run, like the existing
-      benchmark output) + a small aggregation/plot helper.
+- [x] Multi-seed evaluation: `run_benchmark()` in `few_shot/harness.py`
+      defaults to 20 example-sampling seeds; reports mean ± std across seeds
+      (plus per-trace SE). (The fixed-pool k-sweep re-run used single seed 42
+      to stay comparable to the published numbers; Phase-2 grids should use
+      the 20-seed default.)
+- [x] Paired significance tests: `paired_comparison()` — Wilcoxon
+      signed-rank + paired bootstrap over per-trace squared errors. Note:
+      at n=6/5 traces Wilcoxon's two-sided p bottoms out at 0.031/0.0625 —
+      the bootstrap CI is the primary evidence, especially OOD.
+- [x] Simple baselines (`few_shot/baselines.py`), exact benchmark metric,
+      fixed pool:
+  - [x] Persistence — 50.91 ID / 47.07 OOD
+  - [x] Training-pool tail-mean — 38.65 ID / 51.54 OOD
+  - [x] kNN-copy — k=1: 44.24 ID / 36.94 OOD (≈ the paper's GPR 43.8 ID);
+        k=5: 34.98 ID / 39.54 OOD. Retrieval alone is a strong baseline.
+- [x] Persist results as JSON: backward-compatible superset of the old
+      schema (adds method/seeds/per-seed/per-trace records) in
+      `results/few_shot_v2/`; `load_results()`/`results_table()` aggregate
+      old and new files.
 
-**Deliverable**: `evaluation_harness.py` (or extension of
-`few_shot_utils.py`) + baseline numbers table. Every subsequent phase
-reports through this harness.
+**Deliverable**: `few_shot/harness.py` + baseline numbers table. Every
+subsequent phase reports through this harness. ✅
 
 ---
 
@@ -230,8 +251,8 @@ Phase 1 (harness)     ──┘            └── Phase 4 (covariates) ─┘
 
 | Session | Phase | Depends on | Parallel with |
 | ------- | ----- | ---------- | ------------- |
-| 1a      | Phase 0 — OP plumbing | — | 1b |
-| 1b      | Phase 1 — harness | — | 1a |
+| 1a      | Phase 0 — OP plumbing ✅ | — | 1b |
+| 1b      | Phase 1 — harness ✅ | — | 1a |
 | 2a      | Phase 2 — retrieval | 0, 1 | 2b, 2c |
 | 2b      | Phase 3 — presentation format | 1 | 2a, 2c |
 | 2c      | Phase 4 — covariate conditioning | 0, 1 | 2a, 2b |

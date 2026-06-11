@@ -1,20 +1,25 @@
 """Re-run of the few-shot k-sweep with the FIXED example pool.
 
-The published k-sweep (results/few_shot_t266/) was run with an example pool
-that did not actually exclude the six ID test traces (position-based instead
-of raw-id-based exclusion, fixed in Phase 0). This runner repeats the exact
-t266 protocol — fixed pool, example_target_length=None (full-length example
-targets), single seed 42, k in {0, 1, 3, 5, 10} — so any number drift is
-attributable to the pool fix alone. Results go to results/few_shot_v2/.
+The published k-sweeps (results/few_shot_t80/ with 64-step example targets —
+the README tables — and results/few_shot_t266/ with full-length example
+targets) were run with an example pool that did not actually exclude the six
+ID test traces (position-based instead of raw-id-based exclusion, fixed in
+Phase 0). This runner repeats the exact old protocols — fixed pool, single
+seed 42, k in {0, 1, 3, 5, 10} — so any number drift is attributable to the
+pool fix alone.
 
 Usage:
-    uv run python -m fusiontimeseries.benchmarking.few_shot.rerun_ksweep
+    # t266 protocol (full-length example targets)
     uv run python -m fusiontimeseries.benchmarking.few_shot.rerun_ksweep \
-        --models chronos_bolt --ks 0 1
+        --save-dir results/few_shot_v2_t266
+    # t80 protocol (64-step example targets, the README tables)
+    uv run python -m fusiontimeseries.benchmarking.few_shot.rerun_ksweep \
+        --example-target-length 64 --save-dir results/few_shot_v2_t80
 """
 
 import argparse
 import gc
+from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
@@ -45,6 +50,13 @@ MODEL_SLUGS: dict[str, str] = {
 
 def make_tirex_predict(device: str) -> PredictFn:
     """TiRex: 1D device-placed input, quantile output [1, pred_len, 9]."""
+    import os
+
+    if not device.startswith("cuda"):
+        # Disable the sLSTM CUDA kernels (JIT-compiled, CUDA-only) so TiRex
+        # falls back to the vanilla path on MPS/CPU. Must be set before the
+        # first forward pass.
+        os.environ.setdefault("TIREX_NO_CUDA", "1")
     from tirex import load_model
 
     pipeline = load_model(path=MODEL_SLUGS["tirex"], device=device)
@@ -142,9 +154,18 @@ def main() -> None:
     parser.add_argument("--ks", nargs="+", type=int, default=[0, 1, 3, 5, 10])
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", default="mps")
+    parser.add_argument(
+        "--example-target-length",
+        type=lambda s: None if s.lower() == "none" else int(s),
+        default=None,
+        help="Example target length: 64 for the t80 protocol, 'none' for t266 (default)",
+    )
+    parser.add_argument("--save-dir", type=Path, default=None)
     args = parser.parse_args()
 
-    pool = create_example_pool(exclude_ids=set(ID_TEST_RAW_IDS), target_length=None)
+    pool = create_example_pool(
+        exclude_ids=set(ID_TEST_RAW_IDS), target_length=args.example_target_length
+    )
     assert len(pool) == 245, f"Expected fixed pool of 245, got {len(pool)}"
     provider = BenchmarkDataProvider()
 
@@ -164,7 +185,7 @@ def main() -> None:
                 relevant_prediction_tail=80,
                 k_shot=k,
                 random_seed=args.seed,
-                example_target_length=None,
+                example_target_length=args.example_target_length,
             )
             results = run_benchmark(
                 forecast_fn=forecast_fn,
@@ -173,6 +194,7 @@ def main() -> None:
                 method=model_name_clean,
                 seeds=(args.seed,),
                 provider=provider,
+                save_dir=args.save_dir,
             )
             print(
                 f"[{model_name}] k={k}: "

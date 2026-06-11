@@ -65,7 +65,15 @@ src/fusiontimeseries/
 │   │   │                      #   rmse_with_standard_error, Utils
 │   │   └── *_benchmark.ipynb
 │   └── few_shot/              # Few-shot ICL benchmarks (k example traces)
-│       ├── few_shot_utils.py
+│       ├── few_shot_utils.py  # FewShotExample, create_example_pool
+│       │                      #   (excludes by RAW id; pool = 245 traces)
+│       ├── operating_params.py            # raw/benchmark <-> gyroswin-dump
+│       │                                  #   mapping + q/shat/rlt/rln lookup
+│       ├── operating_params_mapping.json  # tracked; rebuild via module __main__
+│       ├── harness.py         # run_benchmark (multi-seed), paired_comparison,
+│       │                      #   make_icl_forecast_fn, load_results/results_table
+│       ├── baselines.py       # persistence / pool tail-mean / kNN-copy
+│       ├── rerun_ksweep.py    # fixed-pool re-run of the old k-sweeps
 │       └── *_fewshot_benchmark.ipynb
 ├── zeroshot/                  # Upstream's zero-shot notebooks (v1.0.0)
 ├── finetuning/
@@ -133,10 +141,18 @@ big `data/flux_data.json` dump via `lib/config.py:FLUX_DATA_PATH`.
 
 ## Data Notes
 
-- Raw traces: `fluxes_{iteration}.dat`, 3-column ASCII (electron, energy, ion
-  flux); only column 1 (energy flux) is used. 800 timesteps, subsampled every
-  3rd → 266.
-- 251 of 300 raw traces are valid for training (mean flux ≥ 1.0 at head/tail).
+- Raw traces: `fluxes_{iteration}.dat` (301 files, 0..300), 3-column ASCII
+  (electron, energy, ion flux); only column 1 (energy flux) is used.
+  800 timesteps; pool traces are `[::3]` (267 steps), benchmark traces are
+  `[2::3]` (266 steps) of the same simulations.
+- 251 of 301 raw traces are valid for training (mean flux ≥ 1.0 at head/tail).
+- Operating params (q, shat, rlt, rln) live only in `data/flux_data.json`
+  under PERMUTED gyroswin keys (1000+i ≠ raw i). The verified value-matched
+  mapping is `few_shot/operating_params_mapping.json` (tracked); use the
+  lookup API in `few_shot/operating_params.py`, never assume key order.
+- `create_example_pool(exclude_ids=...)` takes RAW iteration ids (since
+  2026-06-11; before that it dropped pool positions and leaked the six ID
+  test twins into the pool — see the README few-shot note).
 - Context length 80 (linear phase), prediction length 64, evaluation on last
   80 timesteps.
 - `data/flux` is gitignored. The raw `.dat` files and our benchmark JSON are
@@ -173,19 +189,28 @@ big `data/flux_data.json` dump via `lib/config.py:FLUX_DATA_PATH`.
 3. Pre-commit hooks are disabled — notebook outputs are no longer stripped
    automatically; be careful not to commit huge outputs.
 4. `tirex-ts` is installed with the `cuda` extra per upstream's pyproject;
-   on macOS the CUDA-specific bits are inert.
-5. No automated tests exist. Smoke test after changes:
+   on macOS the CUDA-specific bits are inert. Running TiRex on MPS/CPU needs
+   `TIREX_NO_CUDA=1` set BEFORE the first forward pass (else the sLSTM
+   CUDA-kernel JIT crashes with `KeyError: 'CUDA_LIB'`);
+   `rerun_ksweep.make_tirex_predict` sets it automatically.
+5. `timesfm` must resolve to >= 2.0.1 for the `TimesFM_2p5_200M_torch` /
+   `ForecastConfig` API our notebooks use; the pyproject pin `>=1.3.0` also
+   allows 1.3.0 (old 1.x API) — check `uv.lock` after upstream merges.
+6. No automated tests exist. Smoke tests after changes:
    `uv run --no-sync python -c "from fusiontimeseries.benchmarking.zero_shot.benchmark_utils import BenchmarkDataProvider; print(BenchmarkDataProvider().get_id('iteration_8_ifft').shape)"`
-   (expect `torch.Size([266])`).
+   (expect `torch.Size([266])`), plus the module self-tests
+   (`python -m fusiontimeseries.benchmarking.few_shot.{operating_params,few_shot_utils,harness,baselines}`).
 
 ---
 
 ## Current Results
 
 See `README.md` for the full, current tables: upstream's zero-shot results
-(TiRex best: ID 79.49 ± 14.38), our few-shot ICL results (k=5 TiRex best:
-ID 42.33), and upstream's finetuning results. `docs/results/` has plots;
-`docs/methods/` documents the Bilinear/OSS/RSS LoRA variants.
+(TiRex best: ID 79.49 ± 14.38), our few-shot ICL results (fixed-pool re-run
+2026-06-11; best: Chronos-Bolt-Tiny k=10 at ID 30.65 / OOD 34.62, dirs
+`results/few_shot_v2*`), model-free baselines (kNN-copy k=5: ID 34.98), and
+upstream's finetuning results. `docs/results/` has plots; `docs/methods/`
+documents the Bilinear/OSS/RSS LoRA variants.
 
 ---
 
@@ -202,5 +227,6 @@ after resolving `pyproject.toml`.
 
 ---
 
-**Last Updated**: 2026-06-11 (post upstream v1.0.0 merge)
+**Last Updated**: 2026-06-11 (Phase 0/1: operating-params mapping, pool
+leakage fix, evaluation harness, baselines, fixed-pool k-sweep re-runs)
 **Upstream Maintainer**: Severin Bergsmann (sbergsmann)

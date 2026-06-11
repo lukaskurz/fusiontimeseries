@@ -104,7 +104,10 @@ few_shot/
        exclude_ids=test_ids,
        target_length=config.example_target_length  # Use config!
    )
-   # Returns ~246 examples (251 valid traces - 6 test IDs)
+   # Returns 245 examples (251 valid traces - 6 test IDs)
+   # exclude_ids are RAW iteration ids, translated to pool positions via
+   # operating_params.py (the old position-based exclusion leaked the test
+   # traces' twins into the pool; fixed 2026-06-11)
    # Example format: context=80, target=187 (if target_length=None)
    ```
 
@@ -186,11 +189,19 @@ normed_query = query_scaler.fit_transform(query.reshape(-1, 1))
 
 **Verification**:
 ```python
-test_ids = {8, 115, 131, 148, 235, 262}
-pool = create_example_pool(exclude_ids=test_ids)
+from fusiontimeseries.benchmarking.few_shot.operating_params import ID_TEST_RAW_IDS
+
+pool = create_example_pool(exclude_ids=set(ID_TEST_RAW_IDS))
 pool_ids = {ex.trace_id for ex in pool}
-assert not (pool_ids & test_ids), "Test set leakage!"
+assert not (pool_ids & ID_TEST_RAW_IDS), "Test set leakage!"
+assert len(pool) == 245
 ```
+
+The id-based assert alone is NOT sufficient — it passed while the old
+position-based exclusion was leaking all six test twins. The module
+self-test (`python -m ...few_shot.few_shot_utils`) additionally checks BY
+VALUE that no pool trace matches any benchmark trace under any subsample
+phase.
 
 ## Evaluation Metrics
 
