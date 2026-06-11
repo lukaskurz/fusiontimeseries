@@ -139,7 +139,7 @@ oracle plot (`docs/results/fewshot/selection_random_vs_retrieval_vs_oracle.png`)
 
 ---
 
-## Phase 3 — Example presentation format
+## Phase 3 — Example presentation format ✅ (2026-06-12)
 
 **Goal**: fix the known weakness of flat concatenation and re-examine the
 k-curve.
@@ -151,22 +151,34 @@ pretraining. Our k=10 degradation is plausibly this artifact: 10 splices =
 10 fake discontinuities. [Chronos-2](https://arxiv.org/abs/2510.15821) offers
 the principled alternative natively.
 
-**Tasks**:
-- [ ] Chronos-2 **group ICL**: pass the k examples as related series in a
-      group (its group attention shares information across series) instead
-      of concatenating. Compare vs concat on identical example sets.
-- [ ] Re-run the k-curve (k = 0, 1, 3, 5, 10, and beyond if it keeps
-      improving) under group ICL — does k=10 degradation disappear?
-- [ ] Normalization ablation: per-example z-scoring (current) vs **shared**
-      scaling for examples + query. Per-example scoring destroys relative
-      amplitude — the main signal examples can carry about saturation level.
-- [ ] Ordering ablation (concat models): most-similar example nearest to the
-      query vs furthest vs random order.
-- [ ] Optional: truncated examples (only the overshoot/transition region)
-      to fit more examples into fixed context budget (TiRex/TimesFM).
+**Tasks** (all in `few_shot/presentation.py`; grid
+`run_presentation_grid.py` → `results/few_shot_v3_presentation/`; analysis
+`analyze_presentation.py` → `docs/results/fewshot/presentation_table.md`):
+- [x] Chronos-2 **group ICL**: examples as `past_covariates` rows of one
+      dict task, identical example sets vs concat (hard-asserted) — group is
+      MUCH worse than concat at every k/strategy (random k=5: 79.1 vs 42.1
+      ID); covariate rows barely act as demonstrations, and per-row instance
+      norm means group cannot restore level either.
+- [x] k-curve to k=20 under group ICL — group improves monotonically from
+      the zero-shot anchor but plateaus far above concat; concat itself
+      shows no k=20 degradation (chronos2 random k=20 = 38.0 ID, its best k,
+      despite the 2048-step clamp).
+- [x] Normalization ablation: shared (query-fit) scaling lets the example
+      LEVEL reach the model — oracle_tail finally works (TimesFM 15.99 ID /
+      8.10 OOD at k=10; beats random__shared with significant bootstrap CIs
+      on all 4 models, both splits), random gets significantly WORSE ID for
+      3/4 models (wrong levels now transfer), retrieval improves everywhere
+      (best legit ID: 23.28, Bolt mmr_euclid shared k=10, vs 30.65 before).
+      THE "presentation matters" result.
+- [x] Ordering ablation (ctx_euclid): similar-last vs similar-first vs
+      shuffled — non-factor, ±1–4 RMSE, no consistent direction.
+- [x] Truncated examples (peak+64, applied post-selection): backfires under
+      shared scaling (TiRex ctx_euclid k=10: 42.9 vs 30.8 full; trunc k=20
+      loses to full k=10) — truncation removes the saturation tail the
+      level mechanism copies from.
 
 **Deliverable**: format comparison table; revised k-curve; the
-"presentation matters" result for the thesis discussion.
+"presentation matters" result for the thesis discussion. ✅
 
 ---
 

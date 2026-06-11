@@ -78,8 +78,15 @@ src/fusiontimeseries/
 │       │                      #   ctx_growth / oracle_tail / mmr_euclid)
 │       ├── rerun_ksweep.py    # fixed-pool re-run of the old k-sweeps; also
 │       │                      #   MODEL_SLUGS + PREDICT_FACTORIES model wrappers
+│       │                      #   + make_chronos2_pipeline factory
 │       ├── run_selection_grid.py  # Phase-2 grid: strategy x k x model
 │       ├── analyze_selection.py   # grid analysis -> docs/results/fewshot/
+│       ├── presentation.py    # Phase-3 presentation variants: concat fn with
+│       │                      #   per_example/shared norm, chronos2 group ICL,
+│       │                      #   ordering + truncation SelectFn wrappers
+│       ├── run_presentation_grid.py  # Phase-3 staged grid (A group / B norm /
+│       │                             #   C order / D trunc); skip-if-exists
+│       ├── analyze_presentation.py   # -> docs/results/fewshot/presentation_*
 │       └── *_fewshot_benchmark.ipynb
 ├── zeroshot/                  # Upstream's zero-shot notebooks (v1.0.0)
 ├── finetuning/
@@ -221,7 +228,15 @@ upstream's finetuning results. Phase-2 example-selection grid
 `docs/results/fewshot/selection_table.md`): retrieval does NOT beat random
 on ID (even the cheating oracle doesn't, for 3/4 models — per-example
 z-scoring hides the level signal → Phase 3); small consistent OOD gains;
-op_knn does not beat context-NN. `docs/results/` has plots; `docs/methods/`
+op_knn does not beat context-NN. Phase-3 presentation grid
+(`results/few_shot_v3_presentation/`, analysis in
+`docs/results/fewshot/presentation_table.md`): SHARED scaling (one query-fit
+scaler for examples+query) is the fix — oracle_tail finally works (TimesFM
+15.99 ID / 8.10 OOD at k=10, significant vs random__shared on all 4 models),
+random__shared gets WORSE (wrong levels transfer), best legit ID improves
+30.65 → 23.28 (Bolt mmr_euclid shared k=10); Chronos-2 group ICL is much
+worse than concat; ordering is a non-factor; truncation backfires under
+shared norm. `docs/results/` has plots; `docs/methods/`
 documents the Bilinear/OSS/RSS LoRA variants.
 
 ---
@@ -239,7 +254,9 @@ after resolving `pyproject.toml`.
 
 ---
 
-**Last Updated**: 2026-06-11 (Phase 0/1: operating-params mapping, pool
+**Last Updated**: 2026-06-12 (Phase 0/1: operating-params mapping, pool
 leakage fix, evaluation harness, baselines, fixed-pool k-sweep re-runs;
-Phase 2: retrieval-based example selection — selection.py, grid + analysis)
+Phase 2: retrieval-based example selection — selection.py, grid + analysis;
+Phase 3: example presentation — presentation.py, staged grid + analysis,
+shared-scaling headline result)
 **Upstream Maintainer**: Severin Bergsmann (sbergsmann)
