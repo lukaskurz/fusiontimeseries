@@ -216,16 +216,38 @@ justifies the retrieval design choices.
 
 ---
 
-## Suggested session order
+## Suggested session order & parallelization
 
-| Session | Phase | Depends on |
-| ------- | ----- | ---------- |
-| 1       | Phase 0 + Phase 1 (both are plumbing; fit in one session) | — |
-| 2       | Phase 2 — retrieval | 0, 1 |
-| 3       | Phase 3 — presentation format | 1 (2 helpful) |
-| 4       | Phase 4 — covariate conditioning | 0, 1 |
-| 5       | Phase 5 — analysis | 2–4 |
-| 6       | Phase 6 — write-up | all |
+Phases form two parallel bands separated by merge points; 5 and 6 are
+sequential at the end:
+
+```
+Phase 0 (OP plumbing) ──┐            ┌── Phase 2 (retrieval) ──┐
+                        ├── merge ───┼── Phase 3 (format)     ─┼── Phase 5 ── Phase 6
+Phase 1 (harness)     ──┘            └── Phase 4 (covariates) ─┘
+        parallel ∥                          parallel ∥
+```
+
+| Session | Phase | Depends on | Parallel with |
+| ------- | ----- | ---------- | ------------- |
+| 1a      | Phase 0 — OP plumbing | — | 1b |
+| 1b      | Phase 1 — harness | — | 1a |
+| 2a      | Phase 2 — retrieval | 0, 1 | 2b, 2c |
+| 2b      | Phase 3 — presentation format | 1 | 2a, 2c |
+| 2c      | Phase 4 — covariate conditioning | 0, 1 | 2a, 2b |
+| 3       | Phase 5 — analysis | 2–4 | — |
+| 4       | Phase 6 — write-up | all | — |
+
+Notes for parallel worktree sessions:
+- Keep each phase's code in its own module (`few_shot/harness.py`,
+  `selection.py`, `presentation.py`, `covariates.py`) so merges are trivial.
+- Worktrees do NOT contain untracked files: copy `.env` into the worktree;
+  `FLUX_TRACE_DIR` / `BENCHMARK_SAVE_DIR` must be absolute paths. Use a
+  distinct results subdirectory per phase to avoid clobbering.
+- Author code in parallel, but stagger the heavy benchmark grids — they
+  share one machine's GPU/memory.
+- Phase 4's "ICL + covariates" combo can run with the default config
+  (k=5, random) first and re-run with the best Phase 2/3 config after merge.
 
 ## References
 
