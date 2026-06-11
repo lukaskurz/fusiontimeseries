@@ -33,6 +33,14 @@ class FewShotConfig(BenchmarkConfig):
     random_seed: int = 42
     example_format: Literal["context_target_pairs"] = "context_target_pairs"
     example_target_length: int | None = 64  # None means use full remaining trace
+    # Phase-3 presentation metadata. These fields are descriptive only — the
+    # harness never reads them; the presentation/grid code sets them so result
+    # files record which variant produced them (defaults = the Phase-1/2
+    # protocol, keeping old configs and result JSONs valid).
+    presentation: Literal["concat", "group"] = "concat"
+    normalization: Literal["per_example", "shared"] = "per_example"
+    example_order: Literal["similar_last", "similar_first", "shuffled"] = "similar_last"
+    example_truncation_margin: int | None = None
 
 
 class FewShotExample(BaseModel):

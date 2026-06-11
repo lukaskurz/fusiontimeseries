@@ -71,15 +71,19 @@ def make_tirex_predict(device: str) -> PredictFn:
     return predict
 
 
-def make_chronos2_predict(device: str) -> PredictFn:
-    """Chronos-2: CPU input [1, 1, ctx] (handles device internally)."""
+def make_chronos2_pipeline(device: str):
+    """Load the Chronos-2 pipeline (shared by concat and group-ICL wrappers)."""
     from chronos import Chronos2Pipeline
 
-    pipeline = Chronos2Pipeline.from_pretrained(
+    return Chronos2Pipeline.from_pretrained(
         pretrained_model_name_or_path=MODEL_SLUGS["chronos2"],
         device_map=device,
         dtype=torch.bfloat16,
     )
+
+
+def chronos2_predict_from_pipeline(pipeline) -> PredictFn:
+    """Wrap a loaded Chronos-2 pipeline into the standard PredictFn."""
 
     def predict(context: NDArray[np.float32], prediction_length: int) -> NDArray[np.float32]:
         ctx_tensor = torch.tensor(context, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
@@ -88,6 +92,11 @@ def make_chronos2_predict(device: str) -> PredictFn:
         return Utils.median_forecast(quantiles).squeeze().cpu().numpy()
 
     return predict
+
+
+def make_chronos2_predict(device: str) -> PredictFn:
+    """Chronos-2: CPU input [1, 1, ctx] (handles device internally)."""
+    return chronos2_predict_from_pipeline(make_chronos2_pipeline(device))
 
 
 def make_chronos_bolt_predict(device: str) -> PredictFn:
