@@ -1,5 +1,8 @@
-"""Major Namespaces in the Fusiontimeseries project:
+from . import loralib, lib, zeroshot, finetuning
 
-- benchmarking
-- legacy
-"""
+__all__ = [
+    "loralib",
+    "lib",
+    "zeroshot",
+    "finetuning",
+]

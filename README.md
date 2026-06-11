@@ -6,64 +6,50 @@
 
 Welcome to the Fusion Time Series playground — example code and notebooks for experimenting with flux time-series forecasting models and surrounding tooling.
 
+## 🧰 Installation
 
-## 🧰 Installation & environment (Windows-focused)
+See the [Installation Guide](docs/installation.md) for detailed setup instructions.
 
-These instructions were tested on Windows (PowerShell). Adjust paths/commands as needed for macOS/Linux.
+## 📚 Documentation
 
-0. Install [uv](https://docs.astral.sh/uv/#installation)
-
-1. Clone the repo:
-
-```powershell
-git clone https://github.com/sbergsmann/fusiontimeseries.git
-cd fusiontimeseries
+```
+docs/
+├── methods/
+│   ├── BilinearLoRA.md
+│   ├── OSSBilinearLoRA.md
+│   └── RSSBilinearLoRA.md
+├── poster/
+├── report/
+│   └── 0126-progress-report.md
+├── results/
+│   ├── finetuning/
+│   │   ├── chronos2/
+│   │   └── timesfm/
+│   └── zeroshot/
+└── installation.md
 ```
 
-2. Install dependencies:
-
-For GPU support (CUDA 12.6):
-```powershell
-uv sync --extra cu126 --group dev
-```
-
-For CPU-only:
-```powershell
-uv sync --extra cpu --group dev
-```
-
-3. Install pre-commit hooks
-
-```powershell
-pre-commit install
-```
-
-Notes:
-- `nbstripout` will clear outputs from `.ipynb` files before they are committed.
-- Ruff is configured to attempt automatic fixes (`--fix`) where appropriate.
-
-## 🚀 Quick Test
-
-Run the [TiRex Playbook](playground/tirex-playbook.ipynb) from top to bottom to confirm a working environment.
-
-## 🪟 Only tested on Windows
-
-This repository and the included notebook have been validated on Windows (PowerShell). If you run into platform-specific issues on macOS/Linux, please file an issue or open a PR with repro steps.
+- **[methods/](docs/methods/)** - LoRA adaptation techniques documentation
+- **[poster/](docs/poster/)** - Poster presentations
+- **[report/](docs/report/)** - Progress reports and documentation
+- **[results/](docs/results/)** - Experimental results
+  - **[finetuning/](docs/results/finetuning/)** - Fine-tuning experiment results
+  - **[zeroshot/](docs/results/zeroshot/)** - Zero-shot model results
+- **[installation.md](docs/installation.md)** - Installation and setup guide
 
 ## 📊 Results
 
-### Benchmarking Results (Zero-Shot Models)
+### Zero-Shot Results
 
-Comparison of pre-trained time series models on heat flux prediction without finetuning. Metrics measured on the last 80 timesteps (prediction tail).
+| Base Model               | ID $\bar{Q}$ (↓)  | OOD $\bar{Q}$     | Inference Time [s]  |
+| ------------------------ | ----------------- | ----------------- | ------------------- |
+| google/timesfm-2.0-500m  | 156.17 ± 67.31    | 98.61 ± 23.55     | 5.65 ± 5.82e-2      |
+| amazon/chronos-bolt-tiny | 110.15 ± 14.08    | 92.89 ± 21.16     | **0.030 ± 1.08e-3** |
+| amazon/chronos2          | 107.09 ± 15.74    | 87.47 ± 22.08     | 0.073 ± 1.72e-3     |
+| google/timesfm-2.5-200m  | 104.23 ± 14.87    | 87.20 ± 25.05     | 0.231 ± 7.23e-3     |
+| NX-AI/TiRex              | **79.49 ± 14.38** | **64.03 ± 19.53** | 1.95 ± 1.63e-2      |
 
-| Model                           | In-Distribution RMSE | In-Distribution SE | Out-of-Distribution RMSE | Out-of-Distribution SE | Date       |
-| ------------------------------- | -------------------- | ------------------ | ------------------------ | ---------------------- | ---------- |
-| **NX-AI/TiRex**                 | **63.91**            | **13.62**          | **44.79**                | **7.92**               | 2025-12-26 |
-| google/timesfm-2.5-200m-pytorch | 82.79                | 11.69              | 62.78                    | 14.51                  | 2025-12-26 |
-| amazon/chronos-2                | 84.86                | 14.18              | 60.78                    | 12.75                  | 2025-12-26 |
-| amazon/chronos-bolt-tiny        | 87.78                | 13.76              | 68.02                    | 13.00                  | 2025-12-26 |
-
-**Configuration**: All models used prediction length of 64 timesteps, starting context length of 80 timesteps, evaluated on 6 in-distribution and 5 out-of-distribution samples.
+Zero-shot performance across five time-series foundation models.
 
 ### Few-Shot In-Context Learning Results
 
@@ -145,52 +131,61 @@ Performance of pre-trained models using few-shot in-context learning (ICL) witho
 
 ### Finetuning Results
 
-Performance of finetuned models on the same heat flux prediction task.
 
-300 flux trace simulations were at our disposal. For the following experiments 49 traces were filtered out due to time series head and tail means not being between 1 and inf.
-The remaining 251 samples were sub-sampled from 800 timesteps to 266 (every 3rd timestep) to resemble the benchmark time series as closely as possible.
-For finetuning autogluon samples a custom validation set from the training data. This validation set consists of timeseries where the [:-prediction_length] tail is used for validation and hyperparameter tuning.
-I created a routine to manually provide a validation set by sampling the training set timeseries in a stratified manner. This is achieved by assigning each time series to a bin depending on the time series mean.
+| Base Model                     | Finetuning Type  | ID $\bar{Q}$ (↓) | OOD $\bar{Q}$   | Trainable Params (%) | Trainable Params (#Mio.) | Inference Time [s] |
+| ------------------------------ | ---------------- | ---------------- | --------------- | -------------------- | ------------------------ | ------------------ |
+| google/timesfm-2.0-500m        | Full Finetuning* | 20.67 ± 7.43     | 12.01 ± 3.21    | 100.0                | 498.8                    | 0.091 ± 1.65e-3    |
+| google/timesfm-2.0-500m        | BilinearLoRA     | 20.15 ± 7.79     | 7.11 ± 1.32     | 1.22                 | 6.2                      | 0.245 ± 2.17e-3    |
+| google/timesfm-2.0-500m        | OSSBilinearLoRA  | 19.24 ± 7.87     | 7.74 ± 2.08     | 28.91                | 202.8                    | 0.291 ± 3.85e-3    |
+| GyroSwin-1B [[1]](#references) | -                | 18.35 ± 1.56     | 26.43 ± 9.49    | 100.0                | 1000.0                   | 2.849**            |
+| google/timesfm-2.0-500m        | RSSBilinearLoRA  | 18.03 ± 6.81     | 7.86 ± 2.20     | 1.39                 | 7.0                      | 0.304 ± 2.50e-3    |
+| google/timesfm-2.0-500m        | LoRA*            | 17.76 ± 8.05     | 16.07 ± 4.18    | 1.02                 | 5.1                      | 0.081 ± 1.51e-3    |
+| amazon/chronos2                | LoRA*            | 16.73 ± 6.67     | 5.08 ± 1.22     | 1.0                  | 1.2                      | 0.067 ± 2.95e-2    |
+| amazon/chronos2                | RSSBilinearLoRA  | 16.33 ± 5.39     | 5.65 ± 2.03     | 1.86                 | 2.3                      | 0.170 ± 6.26e-3    |
+| amazon/chronos2                | OSSBilinearLoRA  | 16.11 ± 6.18     | **3.19 ± 0.73** | 25.0                 | 39.8                     | 0.159 ± 4.59e-3    |
+| amazon/chronos2                | Full Finetuning* | 15.50 ± 4.47     | 4.76 ± 0.89     | 100.0                | 119.5                    | 0.050 ± 7.07e-4    |
+| amazon/chronos2                | BilinearLoRA     | **13.83 ± 4.18** | 4.86 ± 0.68     | 1.54                 | 1.9                      | 0.136 ± 8.64e-4    |
 
-> **Todo:** However, since also with this approach only the last prediction tail is used for validation and we want to predict time series from timestep 80 onwards I have to come up with a different solution.
+- Comparison of finetuned performance across base models and GyroSwin
+- For average heat flux $\bar{Q}$ we report RMSE of time-averaged predictions after an autoregressive rollout
+- Time-series models are trained and benchmarked on a NVIDIA RTX 4070 16GB Ti Super
+- (*) No operating parameter conditioning
+- (**) To compare the inference speed to GyroSwin we use the reported 15.4ms forward pass inference speed and multiply by the number of rollout steps (185). The large speed gap can be mainly attributed to the fact that time-series models forecast 64 timesteps in one forward-pass. GyroSwin was benchmarked on a NVIDIA H100 80GB HBM3.
 
-To increase the amount of training data, I subsampled each flux trace three times with a distance of three timesteps.
+## References
 
-| Model                               | Training Samples | Fine-tune Mode | Learning Rate | Steps    | Batch Size | Cross Learning | LoRA r | LoRA α | In-Distribution RMSE | In-Distribution SE | Out-of-Distribution RMSE | Out-of-Distribution SE | Date           |
-| ----------------------------------- | ---------------- | -------------- | ------------- | -------- | ---------- | -------------- | ------ | ------ | -------------------- | ------------------ | ------------------------ | ---------------------- | -------------- |
-| Chronos2 (Finetuned)                | 251              | LoRA           | 1e-4          | 3000     | 64         | No             | 16     | 32     | 18.29                | 3.54               | 37.45                    | 6.77                   | 2025-12-31     |
-| **Chronos2 (Hyperparameter Tuned)** | **251**          | **LoRA**       | **1.77e-4**   | **3000** | **64**     | **Yes**        | **16** | **32** | **15.41**            | **2.55**           | **34.05**                | **9.87**               | **2026-01-01** |
-| Chronos2 (Augmented Data)           | 753              | LoRA           | 1.77e-4       | 3000     | 64         | No             | 16     | 32     | 26.32                | 4.53               | 36.54                    | 10.56                  | 2026-01-01     |
-| Chronos2 (Custom Val Set)           | 677              | LoRA           | 1.7e-4        | 5000     | 64         | No             | 16     | 32     | 24.45                | 6.94               | 38.17                    | 14.32                  | 2026-01-01     |
-| Chronos2 (Custom Val Set)           | 677              | LoRA           | 5e-4          | 6000     | 72         | Yes            | 16     | 32     | 27.86                | 7.03               | 36.69                    | 17.63                  | 2026-01-01     |
-| Chronos2 (Custom Val Set)           | 677              | LoRA           | 4.88e-4       | 4000     | 64         | Yes            | 32     | 64     | 31.36                | 7.18               | 39.30                    | 16.35                  | 2026-01-01     |
+```bibtex
+@misc{paischer2025gyroswin5dsurrogatesgyrokinetic,
+      title={GyroSwin: 5D Surrogates for Gyrokinetic Plasma Turbulence Simulations},
+      author={Fabian Paischer and Gianluca Galletti and William Hornsby and Paul Setinek and Lorenzo Zanisi and Naomi Carey and Stanislas Pamela and Johannes Brandstetter},
+      year={2025},
+      eprint={2510.07314},
+      archivePrefix={arXiv},
+      primaryClass={physics.plasm-ph},
+      url={https://arxiv.org/abs/2510.07314},
+}
+```
 
-**Finetuning Configuration (Hyperparameter Tuned)**:
-- Fine-tune mode: LoRA (Low-Rank Adaptation)
-- Learning rate: 1.77e-4 (Bayesian optimized)
-- Fine-tune steps: 3000
-- Batch size: 64 (Bayesian optimized)
-- Cross learning: True (Bayesian optimized)
-- LoRA config: r=16, alpha=32, dropout=0.1
-- Prediction length: 64 timesteps
-- Context length: 80 timesteps
-- Hyperparameter tuning: 8 trials with Bayesian search
 
-**Key Findings**:
-- 🎯 Hyperparameter tuning Chronos2 with LoRA achieved **81.8% improvement** in ID RMSE compared to zero-shot (84.86 → 15.41)
-- 🎯 **44.0% improvement** in OOD RMSE compared to zero-shot (60.78 → 34.05)
-- 🔧 Hyperparameter tuning improved ID RMSE by **15.8%** over basic finetuning (18.29 → 15.41)
-- 🔧 Hyperparameter tuning improved OOD RMSE by **9.1%** over basic finetuning (37.45 → 34.05)
-- 📈 TiRex shows best zero-shot performance, but hyperparameter-tuned Chronos2 outperforms all zero-shot models significantly
+Ruff check
 
-# Finetuning
+# repos:
+#   - repo: https://github.com/astral-sh/ruff-pre-commit
+#     rev: v0.15.0
+#     hooks:
+#       - id: ruff-check
+#         args: ["--fix"]
+#       - id: ruff-format
 
-## Chronos Finetuning
+#   - repo: https://github.com/kynan/nbstripout
+#     rev: 0.9.0
+#     hooks:
+#       - id: nbstripout
+#         args:
+#           ["--extra-keys=metadata.celltoolbar cell.metadata.heading_collapsed"]
 
-- https://auto.gluon.ai/stable/tutorials/timeseries/forecasting-chronos.html?utm_source=chatgpt.com
-- Supports Covariates
-
-## TimesFM Finetuning
-
-- https://github.com/pfnet-research/timesfm_fin
--
+#   - repo: https://github.com/pre-commit/pre-commit-hooks
+#     rev: v6.0.0
+#     hooks:
+#       - id: end-of-file-fixer
+#       - id: trailing-whitespace
