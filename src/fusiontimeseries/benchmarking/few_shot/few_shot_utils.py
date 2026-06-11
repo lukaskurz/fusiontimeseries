@@ -6,6 +6,11 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
+from fusiontimeseries.benchmarking.few_shot.operating_params import (
+    ID_TEST_RAW_IDS,
+    get_params_for_raw_id,
+    raw_id_for_pool_index,
+)
 from fusiontimeseries.benchmarking.zero_shot.benchmark_utils import BenchmarkConfig
 from fusiontimeseries.finetuning.preprocessing.utils import get_valid_flux_traces
 
@@ -36,8 +41,10 @@ class FewShotExample(BaseModel):
     Contains the trace data split into context and target windows.
     """
 
-    trace_id: int
-    trace: list[float]  # Full trace (266 timesteps)
+    trace_id: int  # Raw iteration id (fluxes_{trace_id}.dat)
+    pool_index: int  # Position key in get_valid_flux_traces()
+    operating_params: dict[str, float] | None = None  # q, shat, rlt, rln (None if no dump match)
+    trace: list[float]  # Full subsampled trace
     context: list[float]  # First 80 timesteps
     target: list[float]  # Next 64 timesteps (timesteps 80-144)
 
@@ -66,16 +73,27 @@ def create_example_pool(
 
     Uses get_valid_flux_traces() which applies:
     - Filtering: mean flux >= 1.0 at head and tail
-    - Subsampling: every 3rd timestep (800 -> 266 timesteps)
+    - Subsampling: every 3rd timestep (800 -> 267 timesteps)
+
+    get_valid_flux_traces() keys traces by an incremental counter over valid
+    traces (pool index), NOT by raw iteration id. ``exclude_ids`` is
+    interpreted as RAW iteration ids and translated through the
+    operating-params mapping — excluding pool positions directly leaked the
+    ID test traces' twins into the pool (fixed 2026-06-11).
 
     Args:
-        exclude_ids: Set of trace IDs to exclude (e.g., test set IDs)
+        exclude_ids: Set of RAW iteration ids to exclude (e.g., ID_TEST_RAW_IDS)
         context_length: Length of context window (default: 80)
         target_length: Length of target window (default: 64)
-                      If None, uses full remaining trace (266 - context_length)
+                      If None, uses full remaining trace
 
     Returns:
-        List of FewShotExample objects
+        List of FewShotExample objects (ordered by pool index)
+
+    Raises:
+        FileNotFoundError: If the operating-params mapping JSON is missing —
+            it is required to translate raw ids; refusing to build a pool
+            without it prevents silent test-set leakage.
     """
     if exclude_ids is None:
         exclude_ids = set()
@@ -85,9 +103,11 @@ def create_example_pool(
 
     example_pool: list[FewShotExample] = []
 
-    for trace_id, trace in valid_traces.items():
-        # Skip excluded IDs (test set)
-        if trace_id in exclude_ids:
+    for pool_index, trace in valid_traces.items():
+        raw_id = raw_id_for_pool_index(pool_index)
+
+        # Skip excluded raw ids (test set)
+        if raw_id in exclude_ids:
             continue
 
         # Extract context and target windows
@@ -101,7 +121,9 @@ def create_example_pool(
 
         # Create example
         example = FewShotExample(
-            trace_id=trace_id,
+            trace_id=raw_id,
+            pool_index=pool_index,
+            operating_params=get_params_for_raw_id(raw_id),
             trace=trace.tolist(),
             context=context.tolist(),
             target=target.tolist(),
@@ -183,12 +205,13 @@ if __name__ == "__main__":
     # Example usage and testing
     print("Testing few-shot utilities...")
 
-    test_ids = {8, 115, 131, 148, 235, 262}
+    test_ids = set(ID_TEST_RAW_IDS)
 
     # Test 1: Standard example pool (64 target)
     print("\n--- Test 1: Standard target length (64) ---")
     pool_64 = create_example_pool(exclude_ids=test_ids, target_length=64)
     print(f"  Pool size: {len(pool_64)}")
+    assert len(pool_64) == 245, f"Expected pool size 245 (251 valid - 6 test), got {len(pool_64)}"
     print(
         f"  Example lengths: ctx={len(pool_64[0].context)}, tgt={len(pool_64[0].target)}"
     )
@@ -217,10 +240,41 @@ if __name__ == "__main__":
         f"  Example lengths: ctx={len(pool_128[0].context)}, tgt={len(pool_128[0].target)}"
     )
 
-    # Verify no test IDs in pool
+    # Verify no test IDs in pool (by raw id)
     pool_ids = {ex.trace_id for ex in pool_64}
     assert not (pool_ids & test_ids), "Test IDs found in example pool!"
-    print("\n✓ No test set leakage")
+    print("\n✓ No test set leakage (by raw id)")
+
+    # Verify no test-set leakage BY VALUE: no pool trace may match any of the
+    # 11 benchmark traces under any of the three subsample phases of its raw
+    # series. This is the check the old position-based exclusion failed
+    # (e.g. pool key 3 was fluxes_8.dat[::3], the twin of iteration_8_ifft).
+    from fusiontimeseries.finetuning.preprocessing.utils import (
+        get_benchmark_flux_traces,
+        load_flux_data,
+    )
+
+    benchmark_traces = get_benchmark_flux_traces()
+    all_benchmark = [
+        trace for split in benchmark_traces.values() for trace in split.values()
+    ]
+    leaks: list[tuple[int, int]] = []
+    for ex in pool_64:
+        raw = load_flux_data(ex.trace_id)
+        for offset in range(3):
+            sub = raw[offset::3]
+            for b_idx, b in enumerate(all_benchmark):
+                n = min(len(sub), len(b))
+                maxdiff = float(np.max(np.abs(sub[:n] - b[:n])))
+                scale = max(1.0, float(np.max(np.abs(b[:n]))))
+                if maxdiff / scale < 1e-3:
+                    leaks.append((ex.trace_id, b_idx))
+    assert not leaks, f"By-value test-set leakage detected: {leaks}"
+    print(f"✓ No test set leakage (by value, {len(pool_64)}x3x{len(all_benchmark)} comparisons)")
+
+    # Operating-params coverage
+    n_with_params = sum(1 for ex in pool_64 if ex.operating_params is not None)
+    print(f"✓ Operating params: {n_with_params}/{len(pool_64)} pool examples covered")
 
     # Test random selection
     k = 3
