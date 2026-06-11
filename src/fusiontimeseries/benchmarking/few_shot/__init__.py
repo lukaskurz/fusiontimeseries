@@ -29,6 +29,16 @@ from .harness import (
     results_table,
     run_benchmark,
 )
+from .selection import (
+    STRATEGIES,
+    dtw_distance,
+    estimate_growth_rate,
+    make_select_fn,
+    select_examples_context_nn,
+    select_examples_mmr,
+    select_examples_op_knn,
+    select_examples_oracle,
+)
 from .operating_params import (
     ID_TEST_RAW_IDS,
     get_params_for_benchmark_trace,
@@ -76,4 +86,13 @@ __all__ = [
     "persistence_forecast",
     "make_pool_tail_mean_forecast",
     "make_knn_copy_forecast",
+    # selection
+    "STRATEGIES",
+    "make_select_fn",
+    "dtw_distance",
+    "estimate_growth_rate",
+    "select_examples_op_knn",
+    "select_examples_context_nn",
+    "select_examples_oracle",
+    "select_examples_mmr",
 ]
