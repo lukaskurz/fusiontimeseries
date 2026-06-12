@@ -96,6 +96,12 @@ src/fusiontimeseries/
 │       │                             #   group) + S1-S5 smoke (tri-state checks)
 │       ├── analyze_covariates.py     # -> docs/results/fewshot/covariates_*
 │       │                             #   + adaptation_ladder.png
+│       ├── run_decoding_grid.py      # Phase-5 grid: point_stat median/mean
+│       │                             #   (/meanhead TimesFM) x anchors/best/
+│       │                             #   oracle/random + D1-D4 smoke
+│       ├── analyze_decoding.py       # -> docs/results/fewshot/decoding_table.md
+│       │                             #   + decoding_effect.png; seed/model
+│       │                             #   ensembling (post-hoc over tail means)
 │       └── *_fewshot_benchmark.ipynb
 ├── zeroshot/                  # Upstream's zero-shot notebooks (v1.0.0)
 ├── finetuning/
@@ -257,7 +263,19 @@ step-encoded channels are ≈ the permuted-params control everywhere
 (zeroshot+cov anchor improves 109.91 → 81.02 ID carrying provably no
 information; oracle k=10 destroyed 23.31 → 47.28). The adaptation ladder
 (zero-shot 109.91 → ICL 29.40 → +cov 44.61 → finetuned 13.83 ID) is the
-bridge deliverable. `docs/results/` has plots; `docs/methods/`
+bridge deliverable. Phase-5 decoding grid (`results/few_shot_v5_decoding/`,
+analysis in `docs/results/fewshot/decoding_table.md` +
+`decoding_effect.png`): mean decoding (decile average over the 9 quantiles;
+NOTE TiRex has NO native mean — the library's "mean" return is a relabeled
+median) improves ID in 14/16 cells, most where calibration is worst
+(Chronos-2 zero-shot −20.4, random −5.2 sig.); new best legit ID 22.63
+(Bolt mmr_euclid shared k=10 + mean). Per-model decoding default going
+forward: mean for Chronos-2/Bolt/TiRex, MEDIAN for TimesFM (its decile
+mean +1.05 and native meanhead +2.01 ID are significantly worse at the
+best config). Seed-ensembling (average the 20 random-set forecasts before
+scoring) is significantly better everywhere but loses to retrieval;
+cross-model ensembling never beats the best single model.
+`docs/results/` has plots; `docs/methods/`
 documents the Bilinear/OSS/RSS LoRA variants.
 
 ---
@@ -280,5 +298,7 @@ leakage fix, evaluation harness, baselines, fixed-pool k-sweep re-runs;
 Phase 2: retrieval-based example selection — selection.py, grid + analysis;
 Phase 3: example presentation — presentation.py, staged grid + analysis,
 shared-scaling headline result; Phase 4: training-free OP conditioning —
-covariates.py, staged grid + analysis, negative result + adaptation ladder)
+covariates.py, staged grid + analysis, negative result + adaptation ladder;
+Phase 5: point-stat decoding + ensembling — run_decoding_grid.py + analysis,
+per-model mean-vs-median decision, seed/model ensembling verdicts)
 **Upstream Maintainer**: Severin Bergsmann (sbergsmann)

@@ -183,7 +183,7 @@ the principled alternative natively.
 
 ---
 
-## Phase 4 — Point forecast & ensembling (cheap decoding wins)
+## Phase 4 — Point forecast & ensembling (cheap decoding wins) ✅ (2026-06-12, implemented as the "v5" grid)
 
 **Goal**: re-decode the existing best configs with the RMSE-optimal point
 statistic (mean, not median) and aggregate forecasts across example sets
@@ -201,22 +201,43 @@ changes through the existing harness. Caveat: shared scaling (Phase 3)
 already fixed level transfer, so the mean-vs-median delta may be smaller
 now than it would have been pre-Phase-3 — still nearly free to test.
 
-**Tasks**:
-- [ ] Add a `point_stat` option (median | mean) to the wrappers in
-      `rerun_ksweep.py` (`PREDICT_FACTORIES`): TiRex returns the mean
-      natively; for Bolt / Chronos-2 / TimesFM approximate the mean from
-      the 9 quantiles (quantile-average / trapezoid).
-- [ ] Re-run k=0 anchors + the best Phase-3 configs (Bolt mmr_euclid shared
-      k=10, TiRex ctx_euclid shared k=10, oracle_tail shared as ceiling)
-      with mean decoding; `paired_comparison` mean vs median per model.
-- [ ] Seed-ensembling: average forecasts (or predicted tail means) across
-      the 20 example-sampling seeds *before* scoring, vs the current
-      per-seed-RMSE aggregation; harness-level variant only.
-- [ ] Cross-model ensemble: average per-trace tail-mean estimates of the
-      two best models (Bolt + TiRex), ID and OOD.
+**Tasks** (grid `few_shot/run_decoding_grid.py` →
+`results/few_shot_v5_decoding/`; analysis `analyze_decoding.py` →
+`docs/results/fewshot/decoding_table.md` + `decoding_effect.png`):
+- [x] `point_stat` option (median | mean) on all wrappers in
+      `rerun_ksweep.py` (`decode_point_forecast` helper). **Correction to
+      the premise above**: TiRex does NOT return a mean natively — its
+      second `forecast()` return is a relabeled median (`# median as
+      mean` selects q0.5 by index; confirmed bit-identical at runtime by
+      smoke D1). Mean = decile average (1/9)·Σ q₀.₁..q₀.₉ for all
+      quantile models (biased low on right skew — it truncates beyond
+      q0.1/q0.9); TimesFM additionally exposes its native mean head as
+      `point_stat="meanhead"` (index 0 of its [mean, q0.1..q0.9] output,
+      layout verified by smoke D2).
+- [x] Re-ran anchors + best Phase-3 configs + oracle ceiling + 20-seed
+      random for ALL 4 models under both decodings (36 cells, one MPS
+      run; median cells bit-reproduce the v3/v4 twins). Mean improves ID
+      in 14/16 cells, most where calibration is worst (Chronos-2
+      zero-shot −20.4, random −5.2 sig.; new best legit 22.63 ID = Bolt
+      mmr shared k=10 + mean). Per-model verdict: adopt mean for
+      Chronos-2 (uniform gains) and Bolt/TiRex (small free wins); KEEP
+      median for TimesFM (best config: decile mean +1.05 ID sig.,
+      meanhead +2.01 ID sig. — the mean statistic itself, not the decile
+      bias).
+- [x] Seed-ensembling (analyzer-side, tail means are linear in the
+      forecast): significantly better than per-seed scoring for every
+      model and decoding (ID −1.7..−5.7, all bootstrap p ≤ 0.001), but
+      its best cell (Bolt mean 34.27 ID) still loses to retrieval —
+      fallback, not replacement.
+- [x] Cross-model ensemble: ALL pairs + the 4-model average (supersedes
+      the literal Bolt+TiRex — which is +3.0 ID WORSE than Bolt alone):
+      no combination beats the best single model ID (closest
+      Bolt+TimesFM −0.31 n.s.) — tail-level errors too correlated.
 
 **Deliverable**: decoding/ensembling table; decision whether mean decoding
-becomes the default for all later phases.
+becomes the default for all later phases. ✅ — per-model: mean default for
+Chronos-2 (incl. Phase 5's finetuned runs) + Bolt + TiRex; median for
+TimesFM.
 
 ---
 
@@ -357,9 +378,9 @@ Phases form parallel bands separated by merge points; 7 and 8 are
 sequential at the end:
 
 ```
-Phase 0 (OP plumbing) ──┐           ┌── Phase 2 (retrieval) ✅ ─┐   ┌── Phase 4 (decoding/ensemble) ─┐
-                        ├── merge ──┤                           ├───┼── Phase 5 (ICL × finetuned)   ─┼── Phase 7 ── Phase 8
-Phase 1 (harness)     ──┘           └── Phase 3 (format) ✅    ─┘   └── Phase 6 (covariates) ✅     ─┘
+Phase 0 (OP plumbing) ──┐           ┌── Phase 2 (retrieval) ✅ ─┐   ┌── Phase 4 (decoding/ensemble) ✅ ─┐
+                        ├── merge ──┤                           ├───┼── Phase 5 (ICL × finetuned)      ─┼── Phase 7 ── Phase 8
+Phase 1 (harness)     ──┘           └── Phase 3 (format) ✅    ─┘   └── Phase 6 (covariates) ✅        ─┘
         parallel ∥                                                          parallel ∥
 ```
 
@@ -369,7 +390,7 @@ Phase 1 (harness)     ──┘           └── Phase 3 (format) ✅    ─�
 | 1b      | Phase 1 — harness ✅ | — | 1a |
 | 2a      | Phase 2 — retrieval ✅ | 0, 1 | 2b |
 | 2b      | Phase 3 — presentation format ✅ | 1 | 2a |
-| 3a      | Phase 4 — decoding & ensembling | 3 | 3b, 3c |
+| 3a      | Phase 4 — decoding & ensembling ✅ | 3 | 3b, 3c |
 | 3b      | Phase 5 — ICL × finetuning | 2, 3 + Severin's checkpoint | 3a, 3c |
 | 3c      | Phase 6 — covariate conditioning ✅ | 0, 1 (best config from 2/3) | 3a, 3b |
 | 4       | Phase 7 — analysis | 2–6 | — |
