@@ -38,6 +38,15 @@ from .presentation import (
     make_truncated_select_fn,
     truncate_example,
 )
+from .covariates import (
+    OP_COVARIATE_MODES,
+    build_op_channels,
+    make_chronos2_covariate_forecast_fn,
+    make_chronos2_group_covariate_forecast_fn,
+    normalized_params_or_nan,
+    permute_example_params,
+    resolve_benchmark_trace_key,
+)
 from .selection import (
     STRATEGIES,
     dtw_distance,
@@ -112,4 +121,12 @@ __all__ = [
     "make_ordered_select_fn",
     "make_truncated_select_fn",
     "truncate_example",
+    # covariates
+    "OP_COVARIATE_MODES",
+    "resolve_benchmark_trace_key",
+    "normalized_params_or_nan",
+    "permute_example_params",
+    "build_op_channels",
+    "make_chronos2_covariate_forecast_fn",
+    "make_chronos2_group_covariate_forecast_fn",
 ]
