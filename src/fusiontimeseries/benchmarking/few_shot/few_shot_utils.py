@@ -45,6 +45,11 @@ class FewShotConfig(BenchmarkConfig):
     # "step" = operating-param step channels over the concat stream,
     # "permuted" = the permuted-params control, None = no covariates.
     op_covariates: Literal["step", "permuted"] | None = None
+    # Phase-5 decoding metadata (descriptive only): which point statistic the
+    # model wrapper decodes from the quantile forecast. "median" = the frozen
+    # Phase-1..4 path (q0.5); "mean" = decile average over the 9 quantiles;
+    # "meanhead" = TimesFM's native mean output head (TimesFM only).
+    point_stat: Literal["median", "mean", "meanhead"] = "median"
 
 
 class FewShotExample(BaseModel):

@@ -98,6 +98,7 @@ def variant_label(
     example_order: str = "similar_last",
     trunc_margin: int | None = None,
     op_covariates: str | None = None,
+    point_stat: str = "median",
 ) -> str:
     """Hyphen-joined non-default tokens; 'base' if everything is default."""
     tokens: list[str] = []
@@ -115,6 +116,8 @@ def variant_label(
         tokens.append("opcov")
     elif op_covariates == "permuted":
         tokens.append("permcov")
+    if point_stat in ("mean", "meanhead"):
+        tokens.append(point_stat)
     return "-".join(tokens) if tokens else "base"
 
 
@@ -159,9 +162,11 @@ class CellRunner:
         example_order: str = "similar_last",
         trunc_margin: int | None = None,
         op_covariates: str | None = None,
+        point_stat: str = "median",
     ) -> None:
         variant = variant_label(
-            presentation, normalization, example_order, trunc_margin, op_covariates
+            presentation, normalization, example_order, trunc_margin, op_covariates,
+            point_stat,
         )
         method = f"{slug.replace('/', '_')}_{strategy}__{variant}"
         if cell_exists(self.save_dir, method, k):
@@ -181,6 +186,7 @@ class CellRunner:
             example_order=example_order,
             example_truncation_margin=trunc_margin,
             op_covariates=op_covariates,
+            point_stat=point_stat,
         )
         t0 = time.perf_counter()
         results = run_benchmark(

@@ -47,9 +47,45 @@ MODEL_SLUGS: dict[str, str] = {
     "timesfm": "google/timesfm-2.5-200m-pytorch",
 }
 
+#: Point statistics decodable from a 9-quantile forecast. TimesFM additionally
+#: supports "meanhead" (its native mean output head) in its own wrapper.
+POINT_STATS: tuple[str, ...] = ("median", "mean")
 
-def make_tirex_predict(device: str) -> PredictFn:
-    """TiRex: 1D device-placed input, quantile output [1, pred_len, 9]."""
+
+def decode_point_forecast(quantiles: torch.Tensor, point_stat: str) -> torch.Tensor:
+    """Decode a point forecast from a quantiles-last forecast tensor.
+
+    ``median`` is the frozen Phase-1..4 path (``Utils.median_forecast``,
+    index ``n_quantiles // 2`` — q0.5 of the 9 deciles). ``mean`` is the
+    decile-average estimator ``(1/9)·Σ q_{0.1..0.9}`` — the standard
+    equal-weight estimator under uniform decile levels. Caveat: it truncates
+    the tails beyond q0.1/q0.9 and therefore UNDERestimates the mean of
+    right-skewed distributions; it is a "decile-average mean", not the exact
+    conditional mean.
+
+    Args:
+        quantiles: Forecast tensor of shape ``[N, pred_len, n_quantiles]``.
+        point_stat: ``"median"`` or ``"mean"``.
+
+    Returns:
+        Point forecast tensor of shape ``[N, pred_len]``.
+    """
+    if point_stat == "median":
+        return Utils.median_forecast(quantiles)
+    if point_stat == "mean":
+        return quantiles.mean(dim=-1)
+    raise ValueError(f"Unknown point_stat {point_stat!r}; expected one of {POINT_STATS}")
+
+
+def make_tirex_predict(device: str, point_stat: str = "median") -> PredictFn:
+    """TiRex: 1D device-placed input, quantile output [1, pred_len, 9].
+
+    NOTE on TiRex's "mean": the library's second ``forecast()`` return is
+    labeled mean but is a relabeled MEDIAN — ``tirex/models/tirex.py`` selects
+    q0.5 by index with the comment ``# median as mean``. There is no native
+    mean output; ``point_stat="mean"`` here uses the decile-average estimator
+    over the 9 quantiles, like the other quantile-only models.
+    """
     import os
 
     if not device.startswith("cuda"):
@@ -66,7 +102,7 @@ def make_tirex_predict(device: str) -> PredictFn:
         quantiles, _ = pipeline.forecast(
             context=ctx_tensor.to(device), prediction_length=prediction_length
         )
-        return Utils.median_forecast(quantiles).squeeze().cpu().numpy()
+        return decode_point_forecast(quantiles, point_stat).squeeze().cpu().numpy()
 
     return predict
 
@@ -82,24 +118,24 @@ def make_chronos2_pipeline(device: str):
     )
 
 
-def chronos2_predict_from_pipeline(pipeline) -> PredictFn:
+def chronos2_predict_from_pipeline(pipeline, point_stat: str = "median") -> PredictFn:
     """Wrap a loaded Chronos-2 pipeline into the standard PredictFn."""
 
     def predict(context: NDArray[np.float32], prediction_length: int) -> NDArray[np.float32]:
         ctx_tensor = torch.tensor(context, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         forecast = pipeline.predict(inputs=ctx_tensor, prediction_length=prediction_length)
         quantiles = forecast[0].permute(0, 2, 1)  # [1, pred_len, n_quantiles]
-        return Utils.median_forecast(quantiles).squeeze().cpu().numpy()
+        return decode_point_forecast(quantiles, point_stat).squeeze().cpu().numpy()
 
     return predict
 
 
-def make_chronos2_predict(device: str) -> PredictFn:
+def make_chronos2_predict(device: str, point_stat: str = "median") -> PredictFn:
     """Chronos-2: CPU input [1, 1, ctx] (handles device internally)."""
-    return chronos2_predict_from_pipeline(make_chronos2_pipeline(device))
+    return chronos2_predict_from_pipeline(make_chronos2_pipeline(device), point_stat)
 
 
-def make_chronos_bolt_predict(device: str) -> PredictFn:
+def make_chronos_bolt_predict(device: str, point_stat: str = "median") -> PredictFn:
     """Chronos-Bolt: device-placed input [1, ctx], quantile-first output."""
     from chronos import ChronosBoltPipeline
 
@@ -114,14 +150,29 @@ def make_chronos_bolt_predict(device: str) -> PredictFn:
         quantiles = pipeline.predict(
             inputs=ctx_tensor.to(device), prediction_length=prediction_length
         ).permute(0, 2, 1)  # [1, pred_len, n_quantiles]
-        return Utils.median_forecast(quantiles).squeeze().cpu().numpy()
+        return decode_point_forecast(quantiles, point_stat).squeeze().cpu().numpy()
 
     return predict
 
 
-def make_timesfm_predict(device: str) -> PredictFn:
-    """TimesFM 2.5: list-of-arrays input, point forecast output."""
+def make_timesfm_predict(device: str, point_stat: str = "median") -> PredictFn:
+    """TimesFM 2.5: list-of-arrays input, point forecast output.
+
+    The full forecast's last dim is ``[mean, q0.1 .. q0.9]`` (10 entries):
+    ``fix_quantile_crossing`` clamps indices 1..9 around anchor index 5 and
+    never touches index 0, and the continuous quantile head rewrites
+    [1,2,3,4,6,7,8,9] anchored at index 5 — so index 5 is the median (and is
+    what ``forecast()``'s first return selects) while index 0 is a separate
+    native mean head. ``point_stat``: ``"median"`` = the frozen first-return
+    path; ``"mean"`` = decile average over indices 1..9; ``"meanhead"`` =
+    index 0 (TimesFM only — the other wrappers reject it).
+    """
     import timesfm
+
+    if point_stat not in (*POINT_STATS, "meanhead"):
+        raise ValueError(
+            f"Unknown point_stat {point_stat!r}; expected one of {(*POINT_STATS, 'meanhead')}"
+        )
 
     pipeline = timesfm.TimesFM_2p5_200M_torch.from_pretrained(MODEL_SLUGS["timesfm"])
     pipeline.compile(
@@ -138,8 +189,13 @@ def make_timesfm_predict(device: str) -> PredictFn:
     )
 
     def predict(context: NDArray[np.float32], prediction_length: int) -> NDArray[np.float32]:
-        forecast, _ = pipeline.forecast(inputs=[context], horizon=prediction_length)
-        return np.asarray(forecast).squeeze(0)
+        point, full = pipeline.forecast(inputs=[context], horizon=prediction_length)
+        if point_stat == "median":
+            return np.asarray(point).squeeze(0)
+        full = np.asarray(full).squeeze(0)  # [pred_len, 10]
+        if point_stat == "mean":
+            return full[:, 1:10].mean(axis=-1)
+        return full[:, 0]  # meanhead
 
     return predict
 
