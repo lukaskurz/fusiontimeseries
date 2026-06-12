@@ -241,7 +241,7 @@ TimesFM.
 
 ---
 
-## Phase 5 — ICL on top of the finetuned model (synergy test)
+## Phase 5 — ICL on top of the finetuned model (synergy test) ✅ (2026-06-12, implemented as the "v6" grid, SELF-TRAINED checkpoint)
 
 **Goal**: run our best retrieval-ICL config through Severin's finetuned
 Chronos-2 (BilinearLoRA) and test whether ICL and finetuning compose.
@@ -254,18 +254,42 @@ the thesis; if it doesn't (or hurts: the finetuned model never saw
 concatenated splices during finetuning), that is a citable negative result.
 Either way it bridges both halves of the project.
 
-**Tasks**:
-- [ ] Load the BilinearLoRA checkpoint behind the existing predict-fn
-      interface (extend `make_chronos2_pipeline` in `rerun_ksweep.py`;
-      checkpoint path/loading from Severin's `experiments/` side).
-- [ ] Sanity anchor: finetuned k=0 through our harness must reproduce
-      Severin's reported numbers on the same 11 traces before anything else.
-- [ ] Run finetuned + best concat config (shared scaling, mmr_euclid and
-      ctx_euclid, k ∈ {5, 10}) + a random__shared control.
-- [ ] `paired_comparison`: finetuned+ICL vs finetuned k=0, and vs base+ICL.
+**Tasks** (grid `few_shot/run_finetuned_grid.py` →
+`results/few_shot_v6_finetuned/`; wrappers `few_shot/finetuned.py`;
+training `finetuning/chronos2/train_bilinear.py`; analysis
+`analyze_finetuned.py` → `docs/results/fewshot/finetuned_icl_table.md`):
+- [x] Load the BilinearLoRA checkpoint behind the existing predict-fn
+      interface — new module `few_shot/finetuned.py` (not rerun_ksweep:
+      its factory contract stays frozen). No checkpoint from Severin
+      (not responding) → SELF-TRAINED with his exact notebook recipe
+      (`train_bilinear.py`, 4000 steps, 64 min MPS); grid is
+      checkpoint-agnostic (`--checkpoint` + sha256 in every JSON), his
+      weights swap in for a minutes-long re-run. Conditioning order gotcha:
+      tensors use the FluxData order [shat, q, rlt, rln], gated by smoke F2b.
+- [x] Sanity anchor: his exact eval protocol on our checkpoint gives
+      ID 15.72 / OOD 6.03 on HIS metric (his published: 13.83 / 4.86 —
+      same ballpark, different run/device/RNG). **Side discovery**: his
+      notebooks score `mean(x[:-80])` — including the 80 copied
+      ground-truth context steps; the honest `mean(x[-80:])` rescore of
+      the SAME forecasts is ID 17.51 / **OOD 40.64** — the README chronos2
+      finetuning rows (esp. OOD) are largely a metric artifact
+      (`severin_anchor.json`, note-for-Severin in the table doc).
+- [x] Run finetuned + best concat config (shared scaling, mmr_euclid and
+      ctx_euclid, k ∈ {5, 10}) + a random__shared control — plus
+      {median, mean} decoding twins, fresh base twins in-dir (bit-equal
+      to v5), and ft @ the 512 training window.
+- [x] `paired_comparison`: finetuned+ICL vs finetuned k=0, and vs base+ICL.
 
 **Deliverable**: the "does adaptation stack?" table — 2×2
-(base/finetuned × k=0/k-best).
+(base/finetuned × k=0/k-best). **Result: YES on ID, via retrieval quality.**
+ft k=0 22.20 ID (mean decoding) already beats best base ICL (27.06); ft +
+mmr_euclid k=5 → 18.62; clamped to the 512 training window → **15.63 ID, the
+project's best legit number** (n=6 marginal gain n.s.; direction consistent).
+Oracle stacks SIGNIFICANTLY (9.39 ID p=.043 / 10.89 OOD p=.002) — ICL
+capacity survives finetuning, retrieval is the bottleneck; random examples
+destroy the ft advantage (ft ≈ base at random k=10). OOD is finetuning's
+story alone (67.94 → 34.10; legit ICL adds nothing). Full-window ICL is OOD
+for the 512-trained model (win512 better in all 8 paired cells).
 
 ---
 
@@ -391,7 +415,7 @@ Phase 1 (harness)     ──┘           └── Phase 3 (format) ✅    ─�
 | 2a      | Phase 2 — retrieval ✅ | 0, 1 | 2b |
 | 2b      | Phase 3 — presentation format ✅ | 1 | 2a |
 | 3a      | Phase 4 — decoding & ensembling ✅ | 3 | 3b, 3c |
-| 3b      | Phase 5 — ICL × finetuning | 2, 3 + Severin's checkpoint | 3a, 3c |
+| 3b      | Phase 5 — ICL × finetuning ✅ (self-trained checkpoint) | 2, 3 + Severin's checkpoint | 3a, 3c |
 | 3c      | Phase 6 — covariate conditioning ✅ | 0, 1 (best config from 2/3) | 3a, 3b |
 | 4       | Phase 7 — analysis | 2–6 | — |
 | 5       | Phase 8 — write-up | all | — |

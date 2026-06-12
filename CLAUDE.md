@@ -102,10 +102,29 @@ src/fusiontimeseries/
 │       ├── analyze_decoding.py       # -> docs/results/fewshot/decoding_table.md
 │       │                             #   + decoding_effect.png; seed/model
 │       │                             #   ensembling (post-hoc over tail means)
+│       ├── finetuned.py       # Phase-6 finetuned-model wrappers: checkpoint
+│       │                      #   reconstruction (load_finetuned_chronos2,
+│       │                      #   window knob 8192/512), raw_param_tensor
+│       │                      #   (FluxData order [shat,q,rlt,rln]!),
+│       │                      #   make_finetuned_forecast_fn (per-query
+│       │                      #   ConditionRegistry patch), severin_anchor_eval
+│       │                      #   (his [:-80] metric + honest [-80:])
+│       ├── run_finetuned_grid.py     # Phase-6 grid: {base, ft} x configs x
+│       │                             #   {median, mean} + ft win512 + anchor
+│       │                             #   stage + F1-F6 smoke (F2b param-order
+│       │                             #   go/no-go gate)
+│       ├── analyze_finetuned.py      # -> docs/results/fewshot/
+│       │                             #   finetuned_icl_table.md +
+│       │                             #   finetuned_synergy.png + regenerated
+│       │                             #   adaptation_ladder.png
 │       └── *_fewshot_benchmark.ipynb
 ├── zeroshot/                  # Upstream's zero-shot notebooks (v1.0.0)
 ├── finetuning/
 │   ├── chronos2/              # Chronos-2 LoRA/full/bilinear notebooks + dataset.py
+│   │                          #   + OUR train_bilinear.py (Phase-6: script-ified
+│   │                          #   BilinearLoRA recipe, MPS adaptations,
+│   │                          #   ensure_flat_flux_data — rebuilds the flat-list
+│   │                          #   flux_data schema lib/dataset.py expects)
 │   ├── timesfm/               # TimesFM finetuning notebooks + dataset.py, trainer.py
 │   ├── evaluation/            # loss_curve.py
 │   └── preprocessing/         # OUR kept module: utils.py (get_valid_flux_traces)
@@ -190,6 +209,17 @@ big `data/flux_data.json` dump via `lib/config.py:FLUX_DATA_PATH`.
 - Upstream's `data/flux_data.json` (tracked, large) has a DIFFERENT schema
   than our benchmark JSON — batches and gyroswin splits keyed by iteration id,
   not in/out-of-distribution keys. Don't confuse the two.
+- THIRD schema gotcha: `lib/dataset.py:load_flux_data` (used by the
+  finetuning notebooks' `Chronos2Dataset`) expects an older FLAT-LIST
+  flux_data schema (FluxData records with idx/distribution) that no longer
+  exists in the repo. `finetuning/chronos2/train_bilinear.py:
+  ensure_flat_flux_data()` rebuilds it from the gyroswin dump (raw ids via
+  the operating-params mapping) into `data/flux/flux_data_flat.json`
+  (gitignored); set `FTSConfig.data_path` to it.
+- CONDITIONING ORDER: FluxData / the finetuned BilinearLoRA conditioning use
+  the `lib/config.py:OP_NAMES` order **[shat, q, rlt, rln]**; the few-shot
+  `operating_params.OP_NAMES` is (q, shat, rlt, rln). Use
+  `finetuned.raw_param_tensor` (built from the lib order); smoke F2b gates it.
 
 ---
 
@@ -274,7 +304,22 @@ forward: mean for Chronos-2/Bolt/TiRex, MEDIAN for TimesFM (its decile
 mean +1.05 and native meanhead +2.01 ID are significantly worse at the
 best config). Seed-ensembling (average the 20 random-set forecasts before
 scoring) is significantly better everywhere but loses to retrieval;
-cross-model ensembling never beats the best single model.
+cross-model ensembling never beats the best single model. Phase-6
+finetuned-ICL grid (`results/few_shot_v6_finetuned/`, analysis in
+`docs/results/fewshot/finetuned_icl_table.md` + `finetuned_synergy.png` +
+regenerated `adaptation_ladder.png`; SELF-TRAINED BilinearLoRA checkpoint
+via `train_bilinear.py`, Severin's exact recipe, sha256 in every JSON —
+his weights swap in via `--checkpoint`): adaptation STACKS on ID through
+retrieval quality — ft k=0 22.20 ID (mean) already beats best base ICL
+(27.06), ft+mmr k=5 18.62, clamped to the 512 TRAINING window **15.63 ID =
+project best legit** (marginal gain n.s. at n=6; direction consistent);
+oracle stacks significantly (9.39 ID/10.89 OOD) → ICL capacity survives
+finetuning, retrieval is the bottleneck; random examples erase the ft
+advantage; OOD is finetuning-only (67.94 → 34.10). METRIC AUDIT: the
+chronos2 finetuning notebooks score mean(x[:-80]) INCLUDING the 80 copied
+context steps — README 13.83/4.86 is on that easier metric; honest [-80:]
+rescore of the same forecasts: ID 17.51 / OOD 40.64 (OOD advantage largely
+artifact; note-for-Severin in the table doc).
 `docs/results/` has plots; `docs/methods/`
 documents the Bilinear/OSS/RSS LoRA variants.
 
@@ -300,5 +345,8 @@ Phase 3: example presentation — presentation.py, staged grid + analysis,
 shared-scaling headline result; Phase 4: training-free OP conditioning —
 covariates.py, staged grid + analysis, negative result + adaptation ladder;
 Phase 5: point-stat decoding + ensembling — run_decoding_grid.py + analysis,
-per-model mean-vs-median decision, seed/model ensembling verdicts)
+per-model mean-vs-median decision, seed/model ensembling verdicts;
+Phase 6: ICL x finetuning — train_bilinear.py self-trained BilinearLoRA,
+finetuned.py + run_finetuned_grid.py + analysis, synergy verdict +
+[:-80] metric audit + corrected adaptation ladder)
 **Upstream Maintainer**: Severin Bergsmann (sbergsmann)

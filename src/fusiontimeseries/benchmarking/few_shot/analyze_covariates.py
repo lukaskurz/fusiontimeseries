@@ -98,10 +98,17 @@ REFERENCE_LADDER: list[dict] = [
         "kind": "reference",
         "cost": "full surrogate training",
     },
+    # METRIC CAVEAT (found in Phase 6): the chronos2 finetuning notebooks
+    # score mean(x[:-80]) — the mean over everything EXCEPT the tail,
+    # INCLUDING the 80 copied ground-truth context steps — while every other
+    # rung here is tail RMSE (mean(x[-80:])). These three rows are therefore
+    # NOT metric-comparable to the rest of the ladder; the honest finetuned
+    # rungs are measured in Phase 6 (analyze_finetuned.py, which regenerates
+    # adaptation_ladder.png with v6 cells).
     {
         # Severin's finetuning runs (this repo, README finetuning section):
         # Chronos-2 + BilinearLoRA with operating-param conditioning.
-        "label": "Chronos-2 BilinearLoRA (finetuned)",
+        "label": "Chronos-2 BilinearLoRA (finetuned; [:-80] metric)",
         "id": 13.83,
         "ood": 4.86,
         "kind": "reference",
@@ -109,7 +116,7 @@ REFERENCE_LADDER: list[dict] = [
     },
     {
         # Severin's finetuning runs: OSSBilinearLoRA variant.
-        "label": "Chronos-2 OSSBilinearLoRA (finetuned)",
+        "label": "Chronos-2 OSSBilinearLoRA (finetuned; [:-80] metric)",
         "id": 16.11,
         "ood": 3.19,
         "kind": "reference",
@@ -117,7 +124,7 @@ REFERENCE_LADDER: list[dict] = [
     },
     {
         # Severin's finetuning runs: full finetune.
-        "label": "Chronos-2 full FT",
+        "label": "Chronos-2 full FT ([:-80] metric)",
         "id": 15.50,
         "ood": 4.76,
         "kind": "reference",
