@@ -50,6 +50,12 @@ class FewShotConfig(BenchmarkConfig):
     # Phase-1..4 path (q0.5); "mean" = decile average over the 9 quantiles;
     # "meanhead" = TimesFM's native mean output head (TimesFM only).
     point_stat: Literal["median", "mean", "meanhead"] = "median"
+    # Phase-6 finetuned-model metadata (descriptive only): checkpoint =
+    # "name@sha256[:12]" of the loaded LoRA checkpoint (None = base weights);
+    # model_context_window = the chronos_config context window the model was
+    # loaded with (None = the wrapper's default for that model).
+    checkpoint: str | None = None
+    model_context_window: int | None = None
 
 
 class FewShotExample(BaseModel):
