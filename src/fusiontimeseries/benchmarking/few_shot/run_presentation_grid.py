@@ -97,6 +97,7 @@ def variant_label(
     normalization: str = "per_example",
     example_order: str = "similar_last",
     trunc_margin: int | None = None,
+    op_covariates: str | None = None,
 ) -> str:
     """Hyphen-joined non-default tokens; 'base' if everything is default."""
     tokens: list[str] = []
@@ -110,6 +111,10 @@ def variant_label(
         tokens.append("shuforder")
     if trunc_margin is not None:
         tokens.append(f"trunc{trunc_margin}")
+    if op_covariates == "step":
+        tokens.append("opcov")
+    elif op_covariates == "permuted":
+        tokens.append("permcov")
     return "-".join(tokens) if tokens else "base"
 
 
@@ -153,8 +158,11 @@ class CellRunner:
         normalization: str = "per_example",
         example_order: str = "similar_last",
         trunc_margin: int | None = None,
+        op_covariates: str | None = None,
     ) -> None:
-        variant = variant_label(presentation, normalization, example_order, trunc_margin)
+        variant = variant_label(
+            presentation, normalization, example_order, trunc_margin, op_covariates
+        )
         method = f"{slug.replace('/', '_')}_{strategy}__{variant}"
         if cell_exists(self.save_dir, method, k):
             print(f"[skip] {method} k={k}: already in {self.save_dir.name}", flush=True)
@@ -172,6 +180,7 @@ class CellRunner:
             normalization=normalization,
             example_order=example_order,
             example_truncation_margin=trunc_margin,
+            op_covariates=op_covariates,
         )
         t0 = time.perf_counter()
         results = run_benchmark(

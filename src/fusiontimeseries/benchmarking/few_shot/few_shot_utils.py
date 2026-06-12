@@ -41,6 +41,10 @@ class FewShotConfig(BenchmarkConfig):
     normalization: Literal["per_example", "shared"] = "per_example"
     example_order: Literal["similar_last", "similar_first", "shuffled"] = "similar_last"
     example_truncation_margin: int | None = None
+    # Phase-4 covariate metadata (descriptive only, like the fields above):
+    # "step" = operating-param step channels over the concat stream,
+    # "permuted" = the permuted-params control, None = no covariates.
+    op_covariates: Literal["step", "permuted"] | None = None
 
 
 class FewShotExample(BaseModel):
