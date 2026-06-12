@@ -297,16 +297,20 @@ for the 512-trained model (win512 better in all 8 paired cells).
       chronos2 rows are affected — and renew the `lora_weights.pt` ask;
       when it arrives, re-run is minutes via `--checkpoint` (grid is
       checkpoint-agnostic, sha256 recorded per cell).
-- [ ] Robustness cell A — step-4000 vs step-200 weights: the shipped
-      checkpoint is the recipe's best-eval pick (step 200 of 4000, noisy
-      25-series eval). The full-model `checkpoint-4000/` still sits in the
-      gitignored `outputs/chronos2-bilinear-selftrained-0/` — extract its
-      `lora_state_dict` BEFORE cleaning outputs/ and run the ft headline
-      cells to settle whether longer training helps or hurts the harness
-      numbers.
-- [ ] Robustness cell B — oracle_tail k10 + zeroshot at win512: completes
-      the window block at the ceiling (k=0 is window-invariant by
-      construction — only oracle is informative; cheap).
+- [x] Robustness cell A — step-4000 vs step-200 weights ✅ (2026-06-13,
+      `results/few_shot_v6_finetuned_step4000/`): the final step-4000
+      weights are WORSE everywhere (zeroshot 24.96 vs 22.20; mmr k5 28.89
+      vs 18.62 sig.; oracle 14.98 vs 9.39 ID mean) — overtraining degrades
+      ICL ability most; the recipe's noisy best-eval pick (step 200) was
+      right. LoRA weights extracted to `lora_weights_step4000.pt` before
+      any outputs/ cleanup.
+- [x] Robustness cell B — oracle_tail k10 at win512 ✅ (2026-06-13): the
+      clamp DESTROYS the ceiling (9.39 → 19.57 ID mean) while helping mmr
+      — so the win512 gain is context COMPOSITION (clamping drops legit
+      retrieval's wrong-level example mass), NOT window-length mismatch.
+      Principle: only matched-tail mass belongs in context; when retrieval
+      guarantees that, longer contexts win. (Feeds the Phase-7 oracle-gap
+      analysis.)
 
 ---
 

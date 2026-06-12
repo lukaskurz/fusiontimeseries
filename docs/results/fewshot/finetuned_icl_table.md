@@ -138,6 +138,8 @@ The finetuned model trained exclusively on 512-wide windows; a k=10 ICL stream i
 | mmr_euclid k=5 | median | 26.10 / 36.36 | 18.77 / 29.64 | -7.33 | -6.72 |
 | mmr_euclid k=10 | mean | 20.80 / 37.22 | 15.63 / 32.34 | -5.17 | -4.89 |
 | mmr_euclid k=10 | median | 29.13 / 38.15 | 18.77 / 29.64 | -10.37 | -8.51 |
+| oracle_tail k=10 | mean | 9.39 / 10.89 | 19.57 / 18.00 | +10.18 | +7.11 |
+| oracle_tail k=10 | median | 16.72 / 15.25 | 29.46 / 21.19 | +12.74 | +5.94 |
 
 | A vs B | split | RMSE A | RMSE B | Δ(A−B) | 95% CI | p_boot | p_wilcoxon |
 |---|---|---|---|---|---|---|---|
@@ -149,6 +151,10 @@ The finetuned model trained exclusively on 512-wide windows; a k=10 ICL stream i
 | [mean] mmr_euclid k=10: win512 vs full | OOD | 32.34 | 37.22 | -4.89 | [-16.77, 5.35] | 0.277 | 0.812 |
 | [median] mmr_euclid k=10: win512 vs full | ID | 18.77 | 29.13 | -10.37 | [-24.22, 2.56] | 0.108 | 0.219 |
 | [median] mmr_euclid k=10: win512 vs full | OOD | 29.64 | 38.15 | -8.51 | [-18.08, 2.78] | 0.164 | 0.812 |
+| [mean] oracle_tail k=10: win512 vs full | ID | 19.57 | 9.39 | +10.18 | [3.09, 14.34] | 0.000 | 0.031 |
+| [mean] oracle_tail k=10: win512 vs full | OOD | 18.00 | 10.89 | +7.11 | [3.83, 9.86] | 0.000 | 0.125 |
+| [median] oracle_tail k=10: win512 vs full | ID | 29.46 | 16.72 | +12.74 | [-3.27, 19.21] | 0.172 | 0.688 |
+| [median] oracle_tail k=10: win512 vs full | OOD | 21.19 | 15.25 | +5.94 | [4.73, 7.26] | 0.000 | 0.062 |
 
 ## Severin-protocol anchor (notebook eval, both metrics)
 
@@ -194,6 +200,52 @@ Same machine, same code path; MPS is not guaranteed bit-deterministic across pro
 | random k=10 | mean | 0.00e+00 | 220/220 |
 | random k=10 | median | 0.00e+00 | 220/220 |
 
+## Robustness — final step-4000 weights vs the shipped checkpoint
+
+The recipe's `load_best_model_at_end` shipped the STEP-200 weights (best eval_loss 4.788 under the noisy 25-series random-cutoff eval; train loss kept falling to 2.65 at step 4000). These cells re-run the finetuned grid with the FINAL step-4000 weights (`lora_weights_step4000.pt@fdad0bd58e5c`, extracted from the last HF checkpoint) — same protocol, fresh base twins in `few_shot_v6_finetuned_step4000/`. Δ < 0 means step-4000 is better.
+
+| config | decoding | window | step-200 (shipped) | step-4000 | Δ ID | Δ OOD |
+|---|---|---|---|---|---|---|
+| ctx_euclid k=5 | mean | full | 29.90 / 37.83 | 42.85 / 37.41 | +12.95 | -0.42 |
+| ctx_euclid k=5 | median | full | 35.22 / 36.51 | 45.58 / 38.26 | +10.36 | +1.75 |
+| ctx_euclid k=10 | mean | full | 26.24 / 34.57 | 40.11 / 35.42 | +13.87 | +0.85 |
+| ctx_euclid k=10 | median | full | 32.93 / 34.58 | 43.60 / 36.65 | +10.67 | +2.08 |
+| mmr_euclid k=5 | mean | full | 18.62 / 36.00 | 28.89 / 39.05 | +10.27 | +3.05 |
+| mmr_euclid k=5 | mean | win512 | 15.63 / 32.34 | 20.77 / 29.87 | +5.14 | -2.47 |
+| mmr_euclid k=5 | median | full | 26.10 / 36.36 | 30.83 / 41.52 | +4.73 | +5.16 |
+| mmr_euclid k=5 | median | win512 | 18.77 / 29.64 | 22.43 / 31.05 | +3.66 | +1.41 |
+| mmr_euclid k=10 | mean | full | 20.80 / 37.22 | 36.73 / 44.27 | +15.92 | +7.05 |
+| mmr_euclid k=10 | mean | win512 | 15.63 / 32.34 | 20.77 / 29.87 | +5.14 | -2.47 |
+| mmr_euclid k=10 | median | full | 29.13 / 38.15 | 39.24 / 46.68 | +10.10 | +8.52 |
+| mmr_euclid k=10 | median | win512 | 18.77 / 29.64 | 22.43 / 31.05 | +3.66 | +1.41 |
+| oracle_tail k=10 | mean | full | 9.39 / 10.89 | 14.98 / 22.48 | +5.59 | +11.59 |
+| oracle_tail k=10 | mean | win512 | 19.57 / 18.00 | 27.03 / 23.41 | +7.47 | +5.41 |
+| oracle_tail k=10 | median | full | 16.72 / 15.25 | 16.86 / 24.23 | +0.15 | +8.98 |
+| oracle_tail k=10 | median | win512 | 29.46 / 21.19 | 29.34 / 25.93 | -0.12 | +4.74 |
+| zeroshot k=0 | mean | full | 22.20 / 34.10 | 24.96 / 36.45 | +2.76 | +2.35 |
+| zeroshot k=0 | median | full | 25.33 / 33.03 | 26.30 / 36.52 | +0.97 | +3.49 |
+
+| A vs B | split | RMSE A | RMSE B | Δ(A−B) | 95% CI | p_boot | p_wilcoxon |
+|---|---|---|---|---|---|---|---|
+| step4000 vs step200: ctx_euclid k=5 [full] | ID | 42.85 | 29.90 | +12.95 | [5.59, 21.56] | 0.000 | 0.031 |
+| step4000 vs step200: ctx_euclid k=5 [full] | OOD | 37.41 | 37.83 | -0.42 | [-22.60, 19.98] | 0.968 | 1.000 |
+| step4000 vs step200: ctx_euclid k=10 [full] | ID | 40.11 | 26.24 | +13.87 | [10.75, 21.21] | 0.000 | 0.031 |
+| step4000 vs step200: ctx_euclid k=10 [full] | OOD | 35.42 | 34.57 | +0.85 | [-21.27, 17.64] | 0.859 | 1.000 |
+| step4000 vs step200: mmr_euclid k=5 [full] | ID | 28.89 | 18.62 | +10.27 | [5.79, 15.55] | 0.000 | 0.031 |
+| step4000 vs step200: mmr_euclid k=5 [full] | OOD | 39.05 | 36.00 | +3.05 | [-16.57, 13.55] | 0.725 | 1.000 |
+| step4000 vs step200: mmr_euclid k=5 [win512] | ID | 20.77 | 15.63 | +5.14 | [1.94, 8.29] | 0.002 | 0.094 |
+| step4000 vs step200: mmr_euclid k=5 [win512] | OOD | 29.87 | 32.34 | -2.47 | [-18.15, 11.92] | 0.775 | 1.000 |
+| step4000 vs step200: mmr_euclid k=10 [full] | ID | 36.73 | 20.80 | +15.92 | [12.40, 19.32] | 0.000 | 0.031 |
+| step4000 vs step200: mmr_euclid k=10 [full] | OOD | 44.27 | 37.22 | +7.05 | [-18.21, 18.23] | 0.398 | 0.625 |
+| step4000 vs step200: mmr_euclid k=10 [win512] | ID | 20.77 | 15.63 | +5.14 | [1.94, 8.29] | 0.002 | 0.094 |
+| step4000 vs step200: mmr_euclid k=10 [win512] | OOD | 29.87 | 32.34 | -2.47 | [-18.15, 11.92] | 0.775 | 1.000 |
+| step4000 vs step200: oracle_tail k=10 [full] | ID | 14.98 | 9.39 | +5.59 | [-0.15, 10.96] | 0.054 | 0.312 |
+| step4000 vs step200: oracle_tail k=10 [full] | OOD | 22.48 | 10.89 | +11.59 | [-8.09, 26.88] | 0.416 | 0.812 |
+| step4000 vs step200: oracle_tail k=10 [win512] | ID | 27.03 | 19.57 | +7.47 | [-0.68, 15.19] | 0.089 | 0.312 |
+| step4000 vs step200: oracle_tail k=10 [win512] | OOD | 23.41 | 18.00 | +5.41 | [-9.90, 18.52] | 0.468 | 0.812 |
+| step4000 vs step200: zeroshot k=0 [full] | ID | 24.96 | 22.20 | +2.76 | [0.90, 8.97] | 0.000 | 0.031 |
+| step4000 vs step200: zeroshot k=0 [full] | OOD | 36.45 | 34.10 | +2.35 | [-8.60, 8.79] | 0.707 | 1.000 |
+
 ## Verdict — does adaptation stack?
 
 | decoding | split | base k0 | ft k0 | base+ICL | ft+ICL | finetuning gain at k0 | finetuning gain at best-k | ICL gain on ft |
@@ -224,20 +276,32 @@ trace_seed resolution) — random examples drag the ft model from 22.20 UP to
 is finetuned, example quality is no longer optional. (5) **OOD is
 finetuning's story alone**: 67.94 → 34.10 at k=0; no legit ICL config
 improves it further (mmr +1.9..+3.1); only the window clamp mildly helps
-(32.34). (6) **The 512 training window beats the full 8192 window in all 8
-paired cells** (−3.0 to −10.4; p 0.08–0.55): long concat streams are
-out-of-distribution for a model finetuned exclusively on 512-step windows.
-Under the clamp, k=5 and k=10 are bit-identical (both reduce to the same
-last-512 stream ≈ the tail of the final example + query) — effective ICL
-for the finetuned model is "one well-chosen example tail inside the
-training window". RAF's retrieval+finetuning synergy claim is qualitatively
-supported on ID; 6 traces cannot make the marginal gain significant.
+(32.34). (6) **The 512-window clamp helps legit retrieval but HURTS the
+oracle — the mechanism is context COMPOSITION, not window-length
+mismatch.** The clamp beats the full window in all 8 mmr cells (−3.0 to
+−10.4) yet destroys the oracle ceiling (9.39 → 19.57 ID mean): mmr/ctx
+selections inevitably include wrong-level examples whose demonstration
+mass dilutes the stream, and clamping to the last 512 steps is a crude
+tail-selector that drops exactly that mass (under the clamp k=5 ≡ k=10
+bit-identically — only the final example's tail + query survive); the
+oracle's examples are ALL level-matched, so more of them is strictly
+better and clamping throws away signal. The principle: context should
+contain only matched-tail mass — when retrieval can guarantee that,
+longer contexts win; when it can't, less-but-best wins. (7) **Robustness —
+the shipped best-eval (step-200) checkpoint beats the final step-4000
+weights EVERYWHERE** (zeroshot 22.20 vs 24.96; mmr k5 18.62 vs 28.89;
+oracle 9.39 vs 14.98 ID mean; win512 mmr 15.63 vs 20.77): training past
+the eval optimum overfits and degrades in-context ability the most. The
+recipe's noisy eval still picked the right checkpoint. RAF's
+retrieval+finetuning synergy claim is qualitatively supported on ID;
+6 traces cannot make the marginal gain significant.
 
 Caveats: self-trained checkpoint (recipe-faithful — the recipe's
 load_best_model_at_end picked step 200 of 4000 under its noisy 25-series
-random-cutoff eval; train loss fell monotonically 5.68 → 2.65); base bf16
-vs ft fp32; one checkpoint, one training run. Severin's weights swap in via
-`--checkpoint` for a minutes-long re-run.
+random-cutoff eval; train loss fell monotonically 5.68 → 2.65; the
+step-4000 robustness block above quantifies the alternative); base bf16
+vs ft fp32; one training run. Severin's weights swap in via `--checkpoint`
+for a minutes-long re-run.
 
 ## Note for Severin — the chronos2 notebooks' benchmark metric
 

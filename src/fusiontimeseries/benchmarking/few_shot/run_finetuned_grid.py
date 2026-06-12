@@ -101,7 +101,13 @@ ICL_CONFIGS: tuple[tuple[str, int], ...] = (
     ("mmr_euclid", 10),
     ("oracle_tail", 10),
 )
-WINDOW_CONFIGS: tuple[tuple[str, int], ...] = (("mmr_euclid", 5), ("mmr_euclid", 10))
+WINDOW_CONFIGS: tuple[tuple[str, int], ...] = (
+    ("mmr_euclid", 5),
+    ("mmr_euclid", 10),
+    # Robustness cell B (2026-06-13): the cheating ceiling at the training
+    # window — does clamping help even when the examples are oracle-picked?
+    ("oracle_tail", 10),
+)
 RANDOM_K: int = 10
 
 

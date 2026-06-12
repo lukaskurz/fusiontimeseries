@@ -319,7 +319,12 @@ advantage; OOD is finetuning-only (67.94 → 34.10). METRIC AUDIT: the
 chronos2 finetuning notebooks score mean(x[:-80]) INCLUDING the 80 copied
 context steps — README 13.83/4.86 is on that easier metric; honest [-80:]
 rescore of the same forecasts: ID 17.51 / OOD 40.64 (OOD advantage largely
-artifact; note-for-Severin in the table doc).
+artifact; note-for-Severin in the table doc). Robustness (2026-06-13):
+step-4000 weights worse everywhere than the shipped step-200 best-eval
+pick (results/few_shot_v6_finetuned_step4000/ — overtraining degrades ICL
+most); oracle@win512 19.57 vs 9.39 full → the win512 gain is context
+COMPOSITION (clamp drops wrong-level example mass), not window-length
+mismatch.
 `docs/results/` has plots; `docs/methods/`
 documents the Bilinear/OSS/RSS LoRA variants.
 

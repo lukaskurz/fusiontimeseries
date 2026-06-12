@@ -59,6 +59,7 @@ from fusiontimeseries.benchmarking.few_shot.run_finetuned_grid import (
 
 REPO_ROOT: Path = Path(__file__).resolve().parents[4]
 DEFAULT_RESULTS_DIR: Path = REPO_ROOT / "results" / "few_shot_v6_finetuned"
+STEP4000_RESULTS_DIR: Path = REPO_ROOT / "results" / "few_shot_v6_finetuned_step4000"
 V5_RESULTS_DIR: Path = REPO_ROOT / "results" / "few_shot_v5_decoding"
 DEFAULT_OUT_DIR: Path = REPO_ROOT / "docs" / "results" / "fewshot"
 
@@ -781,21 +782,88 @@ trace_seed resolution) — random examples drag the ft model from 22.20 UP to
 is finetuned, example quality is no longer optional. (5) **OOD is
 finetuning's story alone**: 67.94 → 34.10 at k=0; no legit ICL config
 improves it further (mmr +1.9..+3.1); only the window clamp mildly helps
-(32.34). (6) **The 512 training window beats the full 8192 window in all 8
-paired cells** (−3.0 to −10.4; p 0.08–0.55): long concat streams are
-out-of-distribution for a model finetuned exclusively on 512-step windows.
-Under the clamp, k=5 and k=10 are bit-identical (both reduce to the same
-last-512 stream ≈ the tail of the final example + query) — effective ICL
-for the finetuned model is "one well-chosen example tail inside the
-training window". RAF's retrieval+finetuning synergy claim is qualitatively
-supported on ID; 6 traces cannot make the marginal gain significant.
+(32.34). (6) **The 512-window clamp helps legit retrieval but HURTS the
+oracle — the mechanism is context COMPOSITION, not window-length
+mismatch.** The clamp beats the full window in all 8 mmr cells (−3.0 to
+−10.4) yet destroys the oracle ceiling (9.39 → 19.57 ID mean): mmr/ctx
+selections inevitably include wrong-level examples whose demonstration
+mass dilutes the stream, and clamping to the last 512 steps is a crude
+tail-selector that drops exactly that mass (under the clamp k=5 ≡ k=10
+bit-identically — only the final example's tail + query survive); the
+oracle's examples are ALL level-matched, so more of them is strictly
+better and clamping throws away signal. The principle: context should
+contain only matched-tail mass — when retrieval can guarantee that,
+longer contexts win; when it can't, less-but-best wins. (7) **Robustness —
+the shipped best-eval (step-200) checkpoint beats the final step-4000
+weights EVERYWHERE** (zeroshot 22.20 vs 24.96; mmr k5 18.62 vs 28.89;
+oracle 9.39 vs 14.98 ID mean; win512 mmr 15.63 vs 20.77): training past
+the eval optimum overfits and degrades in-context ability the most. The
+recipe's noisy eval still picked the right checkpoint. RAF's
+retrieval+finetuning synergy claim is qualitatively supported on ID;
+6 traces cannot make the marginal gain significant.
 
 Caveats: self-trained checkpoint (recipe-faithful — the recipe's
 load_best_model_at_end picked step 200 of 4000 under its noisy 25-series
-random-cutoff eval; train loss fell monotonically 5.68 → 2.65); base bf16
-vs ft fp32; one checkpoint, one training run. Severin's weights swap in via
-`--checkpoint` for a minutes-long re-run.
+random-cutoff eval; train loss fell monotonically 5.68 → 2.65; the
+step-4000 robustness block above quantifies the alternative); base bf16
+vs ft fp32; one training run. Severin's weights swap in via `--checkpoint`
+for a minutes-long re-run.
 """.rstrip()
+
+
+def make_robustness_block(index: dict[Key, dict], step_dir: Path) -> list[str]:
+    """Step-4000 weights vs the shipped best-eval (step-200) checkpoint."""
+    lines = [
+        "\n## Robustness — final step-4000 weights vs the shipped checkpoint",
+        "",
+    ]
+    if not step_dir.exists() or not list(step_dir.glob("*_fewshot_results.json")):
+        lines.append(f"`{step_dir.name}/` not found — robustness cells not run.")
+        return lines
+    alt_index, alt_ckpt = build_index(load_results(step_dir))
+    lines.append(
+        "The recipe's `load_best_model_at_end` shipped the STEP-200 weights "
+        "(best eval_loss 4.788 under the noisy 25-series random-cutoff eval; "
+        "train loss kept falling to 2.65 at step 4000). These cells re-run "
+        f"the finetuned grid with the FINAL step-4000 weights (`{alt_ckpt}`, "
+        "extracted from the last HF checkpoint) — same protocol, fresh base "
+        f"twins in `{step_dir.name}/`. Δ < 0 means step-4000 is better."
+    )
+    lines.append("")
+    lines.append("| config | decoding | window | step-200 (shipped) | step-4000 | Δ ID | Δ OOD |")
+    lines.append("|---|---|---|---|---|---|---|")
+    comparisons: list[str] = []
+    sort_key = lambda key: (*key[:4], key[4] if key[4] is not None else -1)  # noqa: E731
+    for key in sorted(alt_index, key=sort_key):
+        slug, strategy, k, point_stat, window = key
+        if slug != FINETUNED_SLUG:
+            continue
+        shipped = index.get(key)
+        alt = alt_index[key]
+        win_label = "full" if window is None else f"win{window}"
+        if shipped is None:
+            lines.append(
+                f"| {strategy} k={k} | {point_stat} | {win_label} | — | "
+                f"{fmt_split_pair(alt)} | — | — |"
+            )
+            continue
+        deltas = [rmse_of(alt, split) - rmse_of(shipped, split) for split in SPLITS]
+        lines.append(
+            f"| {strategy} k={k} | {point_stat} | {win_label} | "
+            f"{fmt_split_pair(shipped)} | {fmt_split_pair(alt)} | "
+            f"{deltas[0]:+.2f} | {deltas[1]:+.2f} |"
+        )
+        if point_stat == "mean" and len(alt["seeds"]) == len(shipped["seeds"]):
+            comparisons.extend(
+                comparison_rows(
+                    f"step4000 vs step200: {strategy} k={k} [{win_label}]",
+                    alt,
+                    shipped,
+                )
+            )
+    lines.append(COMPARISON_HEADER)
+    lines.extend(comparisons)
+    return lines
 
 
 NOTE_FOR_SEVERIN = """
@@ -832,6 +900,7 @@ computes both metrics side by side.
 def main() -> None:
     parser = argparse.ArgumentParser(description="Analyze the Phase-6 finetuned-ICL grid")
     parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS_DIR)
+    parser.add_argument("--step4000-dir", type=Path, default=STEP4000_RESULTS_DIR)
     parser.add_argument("--v5-dir", type=Path, default=V5_RESULTS_DIR)
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
     args = parser.parse_args()
@@ -858,6 +927,7 @@ def main() -> None:
     lines.extend(make_ladder_table(rows))
     lines.append(f"\n![{ladder_path.stem}]({ladder_path.name})")
     lines.extend(make_bridge_block(index, args.v5_dir))
+    lines.extend(make_robustness_block(index, args.step4000_dir))
     lines.extend(make_verdict(index))
     lines.append("\n" + NOTE_FOR_SEVERIN)
 
