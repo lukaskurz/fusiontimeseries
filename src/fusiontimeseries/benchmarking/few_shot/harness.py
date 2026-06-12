@@ -12,6 +12,7 @@ Provides the pieces every later phase reports through:
   (including legacy single-seed files from results/few_shot_t{80,266}).
 """
 
+from collections.abc import Callable
 from datetime import datetime
 import json
 from pathlib import Path
@@ -292,6 +293,7 @@ def run_benchmark(
     provider: BenchmarkDataProvider | None = None,
     save_dir: Path | None = None,
     save: bool = True,
+    forecast_callback: Callable[[str, int, NDArray[np.float32]], None] | None = None,
 ) -> FewShotRunResults:
     """Evaluate a forecast function over seeds x benchmark traces.
 
@@ -312,6 +314,13 @@ def run_benchmark(
         provider: Benchmark data provider (created if omitted).
         save_dir: Output directory (default: results/few_shot_v2/).
         save: Whether to write the results JSON.
+        forecast_callback: Optional ``(trace_key, seed, forecast)`` hook
+            invoked once per (seed, trace) right after the forecast is
+            computed — the only place the full forecast and the trace key
+            coexist (ForecastFn never sees the key). Used by the Phase-7
+            mechanism dump to capture full forecasts. Default None is
+            bit-identical to the pre-hook behavior; the results schema is
+            unchanged either way.
 
     Returns:
         FewShotRunResults with per-seed, per-trace records and summaries.
@@ -344,6 +353,8 @@ def run_benchmark(
                 example_ids[trace_key] = [ex.trace_id for ex in examples]
 
                 forecast = forecast_fn(trace, examples, config)
+                if forecast_callback is not None:
+                    forecast_callback(trace_key, seed, forecast)
                 true_tail = float(np.mean(trace[-config.relevant_prediction_tail :]))
                 pred_tail = float(np.mean(forecast[-config.relevant_prediction_tail :]))
                 error = pred_tail - true_tail
@@ -627,6 +638,48 @@ if __name__ == "__main__":
         f"{results.in_distribution.se_rmse:.2f}, "
         f"OOD {results.out_of_distribution.rmse:.2f} ± "
         f"{results.out_of_distribution.se_rmse:.2f}"
+    )
+
+    # forecast_callback: full-forecast capture; default-None == bit-identical
+    captured: dict[tuple[int, str], NDArray[np.float32]] = {}
+
+    def capture(trace_key: str, seed: int, forecast: NDArray[np.float32]) -> None:
+        captured[(seed, trace_key)] = np.asarray(forecast).copy()
+
+    cb_results = run_benchmark(
+        forecast_fn=constant_forecast,
+        config=config,
+        example_pool=pool,
+        method="smoke_constant",
+        seeds=(0, 1),
+        save=False,
+        forecast_callback=capture,
+    )
+    assert len(captured) == 22, f"Expected 22 callback calls, got {len(captured)}"
+    cb_provider = BenchmarkDataProvider()
+    for sr in cb_results.per_seed:
+        for tr in sr.per_trace:
+            forecast = captured[(sr.seed, tr.trace_key)]
+            assert forecast.shape == (266,), f"Bad forecast shape {forecast.shape}"
+            getter = (
+                cb_provider.get_ood
+                if tr.trace_key.startswith("ood_")
+                else cb_provider.get_id
+            )
+            trace = getter(tr.trace_key).numpy()
+            assert np.array_equal(
+                forecast[: config.start_context_length],
+                trace[: config.start_context_length],
+            ), f"Context not passed through for {tr.trace_key}"
+            assert float(np.mean(forecast[-config.relevant_prediction_tail :])) == (
+                tr.pred_tail_mean
+            ), f"Captured tail mean != pred_tail_mean for {tr.trace_key}"
+    no_cb = results.model_dump(exclude={"timestamp"})
+    with_cb = cb_results.model_dump(exclude={"timestamp"})
+    assert no_cb == with_cb, "forecast_callback must not change results"
+    print(
+        "✓ forecast_callback: 22 calls (2 seeds × 11 traces), context "
+        "passthrough, tail means ≡ pred_tail_mean bit-exact, results unchanged"
     )
 
     # deterministic=True must still run example selection (only collapse seeds)

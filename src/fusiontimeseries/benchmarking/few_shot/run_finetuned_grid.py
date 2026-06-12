@@ -11,11 +11,11 @@ grid run. Fresh base twins are run in-dir; the base configs overlapping v5
 cross-dir bridge. Base = bf16 (protocol continuity with v3-v5), finetuned =
 fp32 (training numerics) — noted in the analysis captions.
 
-Stages (32 cells + the anchor JSON):
+Stages (40 cells + the anchor JSON):
 
 - ``anchors``: {base, ft} x zeroshot k=0 x {median, mean}            = 4
 - ``icl``:     {base, ft} x {ctx_euclid k5/k10, mmr_euclid k5/k10,
-               oracle_tail k10} x {median, mean}                     = 20
+               oracle_tail k10, op_knn k5/k10} x {median, mean}      = 28
 - ``random``:  {base, ft} x random k=10 (20 seeds) x {median, mean}  = 4
 - ``window``:  ft @ chronos_config 512 (the TRAINING window;
                ``pipeline.predict`` clamps the ICL stream down to it)
@@ -100,6 +100,11 @@ ICL_CONFIGS: tuple[tuple[str, int], ...] = (
     ("mmr_euclid", 5),
     ("mmr_euclid", 10),
     ("oracle_tail", 10),
+    # Phase-7 oracle-gap probe (2026-06-13): op_knn re-tested ON THE FINETUNED
+    # model — uniquely motivated there (the ft model is literally conditioned
+    # on those params; Phase-2's "op_knn ≈ ctx" verdict was base-model only).
+    ("op_knn", 5),
+    ("op_knn", 10),
 )
 WINDOW_CONFIGS: tuple[tuple[str, int], ...] = (
     ("mmr_euclid", 5),
