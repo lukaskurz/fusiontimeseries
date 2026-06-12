@@ -1,0 +1,223 @@
+{
+  "timestamp": "20260612_132010",
+  "method": "amazon_chronos-2_oracle_tail__shared-opcov",
+  "config": {
+    "device": "mps",
+    "model_slug": "amazon/chronos-2",
+    "model_prediction_length": 64,
+    "relevant_prediction_tail": 80,
+    "start_context_length": 80,
+    "k_shot": 5,
+    "random_seed": 42,
+    "example_format": "context_target_pairs",
+    "example_target_length": null,
+    "presentation": "concat",
+    "normalization": "shared",
+    "example_order": "similar_last",
+    "example_truncation_margin": null,
+    "op_covariates": "step"
+  },
+  "seeds": [
+    42
+  ],
+  "n_seeds": 1,
+  "deterministic": true,
+  "in_distribution": {
+    "rmse": 47.98142651326423,
+    "se_rmse": 12.088239342731281,
+    "n_samples": 6,
+    "rmse_std_seeds": null,
+    "rmse_min": 47.98142651326423,
+    "rmse_max": 47.98142651326423
+  },
+  "out_of_distribution": {
+    "rmse": 37.2739476563442,
+    "se_rmse": 16.545044158216857,
+    "n_samples": 5,
+    "rmse_std_seeds": null,
+    "rmse_min": 37.2739476563442,
+    "rmse_max": 37.2739476563442
+  },
+  "per_seed": [
+    {
+      "seed": 42,
+      "example_ids": {
+        "iteration_8_ifft": [
+          218,
+          295,
+          278,
+          192,
+          258
+        ],
+        "iteration_115_ifft": [
+          159,
+          231,
+          241,
+          186,
+          167
+        ],
+        "iteration_131_ifft": [
+          110,
+          145,
+          196,
+          121,
+          113
+        ],
+        "iteration_148_ifft": [
+          141,
+          268,
+          232,
+          174,
+          208
+        ],
+        "iteration_235_ifft": [
+          124,
+          236,
+          292,
+          193,
+          244
+        ],
+        "iteration_262_ifft": [
+          295,
+          218,
+          278,
+          192,
+          258
+        ],
+        "ood_iteration_0_ifft_realpotens": [
+          151,
+          200,
+          60,
+          132,
+          178
+        ],
+        "ood_iteration_1_ifft_realpotens": [
+          159,
+          208,
+          137,
+          232,
+          130
+        ],
+        "ood_iteration_2_ifft_realpotens": [
+          247,
+          290,
+          127,
+          251,
+          135
+        ],
+        "ood_iteration_3_ifft_realpotens": [
+          163,
+          105,
+          216,
+          230,
+          189
+        ],
+        "ood_iteration_4_ifft_realpotens": [
+          275,
+          128,
+          253,
+          177,
+          143
+        ]
+      },
+      "in_distribution": {
+        "rmse": 47.98142651326423,
+        "se_rmse": 12.088239342731281
+      },
+      "out_of_distribution": {
+        "rmse": 37.2739476563442,
+        "se_rmse": 16.545044158216857
+      },
+      "per_trace": [
+        {
+          "trace_key": "iteration_8_ifft",
+          "true_tail_mean": 146.24581909179688,
+          "pred_tail_mean": 65.33283996582031,
+          "error": -80.91297912597656,
+          "abs_error": 80.91297912597656,
+          "squared_error": 6546.910191040719
+        },
+        {
+          "trace_key": "iteration_115_ifft",
+          "true_tail_mean": 74.91597747802734,
+          "pred_tail_mean": 58.5031852722168,
+          "error": -16.412792205810547,
+          "abs_error": 16.412792205810547,
+          "squared_error": 269.37974799111544
+        },
+        {
+          "trace_key": "iteration_131_ifft",
+          "true_tail_mean": 142.0397491455078,
+          "pred_tail_mean": 123.15495300292969,
+          "error": -18.884796142578125,
+          "abs_error": 18.884796142578125,
+          "squared_error": 356.63552534673363
+        },
+        {
+          "trace_key": "iteration_148_ifft",
+          "true_tail_mean": 70.38298034667969,
+          "pred_tail_mean": 50.25626754760742,
+          "error": -20.126712799072266,
+          "abs_error": 20.126712799072266,
+          "squared_error": 405.08456809633935
+        },
+        {
+          "trace_key": "iteration_235_ifft",
+          "true_tail_mean": 113.45405578613281,
+          "pred_tail_mean": 82.83421325683594,
+          "error": -30.619842529296875,
+          "abs_error": 30.619842529296875,
+          "squared_error": 937.5747565189376
+        },
+        {
+          "trace_key": "iteration_262_ifft",
+          "true_tail_mean": 145.94931030273438,
+          "pred_tail_mean": 73.16387939453125,
+          "error": -72.78543090820312,
+          "abs_error": 72.78543090820312,
+          "squared_error": 5297.718952492811
+        },
+        {
+          "trace_key": "ood_iteration_0_ifft_realpotens",
+          "true_tail_mean": 65.9598617553711,
+          "pred_tail_mean": 61.17992401123047,
+          "error": -4.779937744140625,
+          "abs_error": 4.779937744140625,
+          "squared_error": 22.847804837860167
+        },
+        {
+          "trace_key": "ood_iteration_1_ifft_realpotens",
+          "true_tail_mean": 72.21946716308594,
+          "pred_tail_mean": 81.7984390258789,
+          "error": 9.578971862792969,
+          "abs_error": 9.578971862792969,
+          "squared_error": 91.7567019481794
+        },
+        {
+          "trace_key": "ood_iteration_2_ifft_realpotens",
+          "true_tail_mean": 101.17436981201172,
+          "pred_tail_mean": 93.95808410644531,
+          "error": -7.216285705566406,
+          "abs_error": 7.216285705566406,
+          "squared_error": 52.074779384362046
+        },
+        {
+          "trace_key": "ood_iteration_3_ifft_realpotens",
+          "true_tail_mean": 184.3267364501953,
+          "pred_tail_mean": 162.70156860351562,
+          "error": -21.625167846679688,
+          "abs_error": 21.625167846679688,
+          "squared_error": 467.647884397069
+        },
+        {
+          "trace_key": "ood_iteration_4_ifft_realpotens",
+          "true_tail_mean": 156.22792053222656,
+          "pred_tail_mean": 76.77725219726562,
+          "error": -79.45066833496094,
+          "abs_error": 79.45066833496094,
+          "squared_error": 6312.408698871965
+        }
+      ]
+    }
+  ]
+}

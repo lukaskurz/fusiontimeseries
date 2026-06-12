@@ -1,0 +1,223 @@
+{
+  "timestamp": "20260612_131958",
+  "method": "amazon_chronos-2_mmr_euclid__shared-opcov",
+  "config": {
+    "device": "mps",
+    "model_slug": "amazon/chronos-2",
+    "model_prediction_length": 64,
+    "relevant_prediction_tail": 80,
+    "start_context_length": 80,
+    "k_shot": 5,
+    "random_seed": 42,
+    "example_format": "context_target_pairs",
+    "example_target_length": null,
+    "presentation": "concat",
+    "normalization": "shared",
+    "example_order": "similar_last",
+    "example_truncation_margin": null,
+    "op_covariates": "step"
+  },
+  "seeds": [
+    42
+  ],
+  "n_seeds": 1,
+  "deterministic": true,
+  "in_distribution": {
+    "rmse": 47.296249248361924,
+    "se_rmse": 9.603754244894342,
+    "n_samples": 6,
+    "rmse_std_seeds": null,
+    "rmse_min": 47.296249248361924,
+    "rmse_max": 47.296249248361924
+  },
+  "out_of_distribution": {
+    "rmse": 43.073492499531014,
+    "se_rmse": 16.527113321011125,
+    "n_samples": 5,
+    "rmse_std_seeds": null,
+    "rmse_min": 43.073492499531014,
+    "rmse_max": 43.073492499531014
+  },
+  "per_seed": [
+    {
+      "seed": 42,
+      "example_ids": {
+        "iteration_8_ifft": [
+          157,
+          268,
+          272,
+          158,
+          239
+        ],
+        "iteration_115_ifft": [
+          161,
+          212,
+          107,
+          55,
+          275
+        ],
+        "iteration_131_ifft": [
+          167,
+          40,
+          120,
+          101,
+          161
+        ],
+        "iteration_148_ifft": [
+          220,
+          275,
+          85,
+          149,
+          74
+        ],
+        "iteration_235_ifft": [
+          135,
+          177,
+          264,
+          273,
+          251
+        ],
+        "iteration_262_ifft": [
+          187,
+          184,
+          181,
+          254,
+          154
+        ],
+        "ood_iteration_0_ifft_realpotens": [
+          112,
+          182,
+          270,
+          236,
+          132
+        ],
+        "ood_iteration_1_ifft_realpotens": [
+          230,
+          117,
+          269,
+          114,
+          179
+        ],
+        "ood_iteration_2_ifft_realpotens": [
+          257,
+          173,
+          234,
+          184,
+          161
+        ],
+        "ood_iteration_3_ifft_realpotens": [
+          136,
+          225,
+          252,
+          238,
+          243
+        ],
+        "ood_iteration_4_ifft_realpotens": [
+          266,
+          244,
+          222,
+          241,
+          251
+        ]
+      },
+      "in_distribution": {
+        "rmse": 47.296249248361924,
+        "se_rmse": 9.603754244894342
+      },
+      "out_of_distribution": {
+        "rmse": 43.073492499531014,
+        "se_rmse": 16.527113321011125
+      },
+      "per_trace": [
+        {
+          "trace_key": "iteration_8_ifft",
+          "true_tail_mean": 146.24581909179688,
+          "pred_tail_mean": 74.90412139892578,
+          "error": -71.3416976928711,
+          "abs_error": 71.3416976928711,
+          "squared_error": 5089.637829701009
+        },
+        {
+          "trace_key": "iteration_115_ifft",
+          "true_tail_mean": 74.91597747802734,
+          "pred_tail_mean": 67.7237777709961,
+          "error": -7.19219970703125,
+          "abs_error": 7.19219970703125,
+          "squared_error": 51.7277366258204
+        },
+        {
+          "trace_key": "iteration_131_ifft",
+          "true_tail_mean": 142.0397491455078,
+          "pred_tail_mean": 99.2626724243164,
+          "error": -42.777076721191406,
+          "abs_error": 42.777076721191406,
+          "squared_error": 1829.8782928106957
+        },
+        {
+          "trace_key": "iteration_148_ifft",
+          "true_tail_mean": 70.38298034667969,
+          "pred_tail_mean": 48.19683074951172,
+          "error": -22.18614959716797,
+          "abs_error": 22.18614959716797,
+          "squared_error": 492.2252339479164
+        },
+        {
+          "trace_key": "iteration_235_ifft",
+          "true_tail_mean": 113.45405578613281,
+          "pred_tail_mean": 81.23258972167969,
+          "error": -32.221466064453125,
+          "abs_error": 32.221466064453125,
+          "squared_error": 1038.2228753427044
+        },
+        {
+          "trace_key": "iteration_262_ifft",
+          "true_tail_mean": 145.94931030273438,
+          "pred_tail_mean": 75.80717468261719,
+          "error": -70.14213562011719,
+          "abs_error": 70.14213562011719,
+          "squared_error": 4919.919189350912
+        },
+        {
+          "trace_key": "ood_iteration_0_ifft_realpotens",
+          "true_tail_mean": 65.9598617553711,
+          "pred_tail_mean": 67.01275634765625,
+          "error": 1.0528945922851562,
+          "abs_error": 1.0528945922851562,
+          "squared_error": 1.1085870224633254
+        },
+        {
+          "trace_key": "ood_iteration_1_ifft_realpotens",
+          "true_tail_mean": 72.21946716308594,
+          "pred_tail_mean": 84.66242980957031,
+          "error": 12.442962646484375,
+          "abs_error": 12.442962646484375,
+          "squared_error": 154.82731942180544
+        },
+        {
+          "trace_key": "ood_iteration_2_ifft_realpotens",
+          "true_tail_mean": 101.17436981201172,
+          "pred_tail_mean": 83.38082885742188,
+          "error": -17.793540954589844,
+          "abs_error": 17.793540954589844,
+          "squared_error": 316.61009970266605
+        },
+        {
+          "trace_key": "ood_iteration_3_ifft_realpotens",
+          "true_tail_mean": 184.3267364501953,
+          "pred_tail_mean": 147.8553924560547,
+          "error": -36.471343994140625,
+          "abs_error": 36.471343994140625,
+          "squared_error": 1330.1589327389374
+        },
+        {
+          "trace_key": "ood_iteration_4_ifft_realpotens",
+          "true_tail_mean": 156.22792053222656,
+          "pred_tail_mean": 69.77606201171875,
+          "error": -86.45185852050781,
+          "abs_error": 86.45185852050781,
+          "squared_error": 7473.923841649899
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,223 @@
+{
+  "timestamp": "20260612_132241",
+  "method": "amazon_chronos-2_ctx_euclid__group-opcov",
+  "config": {
+    "device": "mps",
+    "model_slug": "amazon/chronos-2",
+    "model_prediction_length": 64,
+    "relevant_prediction_tail": 80,
+    "start_context_length": 80,
+    "k_shot": 5,
+    "random_seed": 42,
+    "example_format": "context_target_pairs",
+    "example_target_length": null,
+    "presentation": "group",
+    "normalization": "per_example",
+    "example_order": "similar_last",
+    "example_truncation_margin": null,
+    "op_covariates": "step"
+  },
+  "seeds": [
+    42
+  ],
+  "n_seeds": 1,
+  "deterministic": true,
+  "in_distribution": {
+    "rmse": 85.37478322565377,
+    "se_rmse": 12.926814435526666,
+    "n_samples": 6,
+    "rmse_std_seeds": null,
+    "rmse_min": 85.37478322565377,
+    "rmse_max": 85.37478322565377
+  },
+  "out_of_distribution": {
+    "rmse": 70.67533299869648,
+    "se_rmse": 15.987387441114196,
+    "n_samples": 5,
+    "rmse_std_seeds": null,
+    "rmse_min": 70.67533299869648,
+    "rmse_max": 70.67533299869648
+  },
+  "per_seed": [
+    {
+      "seed": 42,
+      "example_ids": {
+        "iteration_8_ifft": [
+          166,
+          76,
+          208,
+          268,
+          239
+        ],
+        "iteration_115_ifft": [
+          0,
+          268,
+          71,
+          107,
+          275
+        ],
+        "iteration_131_ifft": [
+          266,
+          162,
+          174,
+          58,
+          161
+        ],
+        "iteration_148_ifft": [
+          162,
+          238,
+          149,
+          286,
+          74
+        ],
+        "iteration_235_ifft": [
+          144,
+          196,
+          231,
+          133,
+          251
+        ],
+        "iteration_262_ifft": [
+          267,
+          187,
+          218,
+          125,
+          154
+        ],
+        "ood_iteration_0_ifft_realpotens": [
+          154,
+          75,
+          236,
+          182,
+          132
+        ],
+        "ood_iteration_1_ifft_realpotens": [
+          127,
+          214,
+          269,
+          230,
+          179
+        ],
+        "ood_iteration_2_ifft_realpotens": [
+          184,
+          234,
+          2,
+          75,
+          161
+        ],
+        "ood_iteration_3_ifft_realpotens": [
+          136,
+          180,
+          253,
+          105,
+          243
+        ],
+        "ood_iteration_4_ifft_realpotens": [
+          113,
+          278,
+          103,
+          233,
+          251
+        ]
+      },
+      "in_distribution": {
+        "rmse": 85.37478322565377,
+        "se_rmse": 12.926814435526666
+      },
+      "out_of_distribution": {
+        "rmse": 70.67533299869648,
+        "se_rmse": 15.987387441114196
+      },
+      "per_trace": [
+        {
+          "trace_key": "iteration_8_ifft",
+          "true_tail_mean": 146.24581909179688,
+          "pred_tail_mean": 19.688833236694336,
+          "error": -126.55698585510254,
+          "abs_error": 126.55698585510254,
+          "squared_error": 16016.670668728624
+        },
+        {
+          "trace_key": "iteration_115_ifft",
+          "true_tail_mean": 74.91597747802734,
+          "pred_tail_mean": 10.731103897094727,
+          "error": -64.18487358093262,
+          "abs_error": 64.18487358093262,
+          "squared_error": 4119.697996600302
+        },
+        {
+          "trace_key": "iteration_131_ifft",
+          "true_tail_mean": 142.0397491455078,
+          "pred_tail_mean": 59.39501953125,
+          "error": -82.64472961425781,
+          "abs_error": 82.64472961425781,
+          "squared_error": 6830.151333013782
+        },
+        {
+          "trace_key": "iteration_148_ifft",
+          "true_tail_mean": 70.38298034667969,
+          "pred_tail_mean": 21.378101348876953,
+          "error": -49.004878997802734,
+          "abs_error": 49.004878997802734,
+          "squared_error": 2401.4781655892875
+        },
+        {
+          "trace_key": "iteration_235_ifft",
+          "true_tail_mean": 113.45405578613281,
+          "pred_tail_mean": 59.135459899902344,
+          "error": -54.31859588623047,
+          "abs_error": 54.31859588623047,
+          "squared_error": 2950.5098590516136
+        },
+        {
+          "trace_key": "iteration_262_ifft",
+          "true_tail_mean": 145.94931030273438,
+          "pred_tail_mean": 39.11011505126953,
+          "error": -106.83919525146484,
+          "abs_error": 106.83919525146484,
+          "squared_error": 11414.613641980628
+        },
+        {
+          "trace_key": "ood_iteration_0_ifft_realpotens",
+          "true_tail_mean": 65.9598617553711,
+          "pred_tail_mean": 22.79070472717285,
+          "error": -43.16915702819824,
+          "abs_error": 43.16915702819824,
+          "squared_error": 1863.5761185252377
+        },
+        {
+          "trace_key": "ood_iteration_1_ifft_realpotens",
+          "true_tail_mean": 72.21946716308594,
+          "pred_tail_mean": 74.9124526977539,
+          "error": 2.6929855346679688,
+          "abs_error": 2.6929855346679688,
+          "squared_error": 7.2521710899309255
+        },
+        {
+          "trace_key": "ood_iteration_2_ifft_realpotens",
+          "true_tail_mean": 101.17436981201172,
+          "pred_tail_mean": 14.0090913772583,
+          "error": -87.16527843475342,
+          "abs_error": 87.16527843475342,
+          "squared_error": 7597.785764608089
+        },
+        {
+          "trace_key": "ood_iteration_3_ifft_realpotens",
+          "true_tail_mean": 184.3267364501953,
+          "pred_tail_mean": 129.68760681152344,
+          "error": -54.639129638671875,
+          "abs_error": 54.639129638671875,
+          "squared_error": 2985.4344876715913
+        },
+        {
+          "trace_key": "ood_iteration_4_ifft_realpotens",
+          "true_tail_mean": 156.22792053222656,
+          "pred_tail_mean": 44.33080291748047,
+          "error": -111.8971176147461,
+          "abs_error": 111.8971176147461,
+          "squared_error": 12520.96493048832
+        }
+      ]
+    }
+  ]
+}
