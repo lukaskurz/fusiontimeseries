@@ -1,0 +1,54 @@
+{
+    "op_embedding_dim": 512,
+    "num_ops": 4,
+    "context_length": 512,
+    "start_context_timestamp": 40,
+    "train_context_cutoffs": [
+        1,
+        70,
+        139
+    ],
+    "prediction_length": 80,
+    "batch_size": 128,
+    "device": "mps",
+    "op_ranges": {
+        "shat": [
+            0,
+            5
+        ],
+        "q": [
+            1,
+            9
+        ],
+        "rlt": [
+            3.5,
+            12
+        ],
+        "rln": [
+            0,
+            7
+        ]
+    },
+    "random_seed": 123,
+    "stratification_bins": 5,
+    "sampling_bins": 5,
+    "val_size": 0.1,
+    "padding_value": NaN,
+    "padding_mask_default": 0.0,
+    "padding_mask_indicator": 1.0,
+    "pred_tail_timestamps": 80,
+    "subsample_factor": 3,
+    "full_subsampling": true,
+    "stratification": "opc_pca",
+    "sampling_strategy": "linear",
+    "data_augmentation": "white_noise",
+    "drop_ids": [],
+    "learning_rate": 0.0001,
+    "lr_scheduler_type": "linear",
+    "lr_scheduler_warmup_ratio": 0.0,
+    "optimizer_type": "adamw_torch_fused",
+    "max_grad_norm": 1.0,
+    "max_steps": 4000,
+    "gradient_accumulation_steps": 1,
+    "eval_steps": 200
+}
