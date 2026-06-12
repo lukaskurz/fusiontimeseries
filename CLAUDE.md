@@ -87,6 +87,15 @@ src/fusiontimeseries/
 │       ├── run_presentation_grid.py  # Phase-3 staged grid (A group / B norm /
 │       │                             #   C order / D trunc); skip-if-exists
 │       ├── analyze_presentation.py   # -> docs/results/fewshot/presentation_*
+│       ├── covariates.py      # Phase-4 training-free OP conditioning
+│       │                      #   (chronos2 covariates): step channels over the
+│       │                      #   concat stream, by-value query resolver,
+│       │                      #   permuted control, group+cov; affine-erasure
+│       │                      #   theory in the module docstring
+│       ├── run_covariates_grid.py    # Phase-4 grid (anchors/main/k1/perm/
+│       │                             #   group) + S1-S5 smoke (tri-state checks)
+│       ├── analyze_covariates.py     # -> docs/results/fewshot/covariates_*
+│       │                             #   + adaptation_ladder.png
 │       └── *_fewshot_benchmark.ipynb
 ├── zeroshot/                  # Upstream's zero-shot notebooks (v1.0.0)
 ├── finetuning/
@@ -236,7 +245,19 @@ scaler for examples+query) is the fix — oracle_tail finally works (TimesFM
 random__shared gets WORSE (wrong levels transfer), best legit ID improves
 30.65 → 23.28 (Bolt mmr_euclid shared k=10); Chronos-2 group ICL is much
 worse than concat; ordering is a non-factor; truncation backfires under
-shared norm. `docs/results/` has plots; `docs/methods/`
+shared norm. Phase-4 covariate grid (`results/few_shot_v4_covariates/`,
+analysis in `docs/results/fewshot/covariates_table.md` +
+`adaptation_ladder.png`): training-free OP conditioning via Chronos-2
+covariate channels is a clean NEGATIVE — Chronos-2 instance-norms each row
+independently, so constant channels are value-erased exactly (verified
+bit-identical for tri-state-matched values; the surviving float32 tri-state
+artifact still perturbs outputs, and is device-dependent CPU vs MPS);
+step-encoded channels are ≈ the permuted-params control everywhere
+(presence, not information), homogenizing all strategies toward ~47 ID
+(zeroshot+cov anchor improves 109.91 → 81.02 ID carrying provably no
+information; oracle k=10 destroyed 23.31 → 47.28). The adaptation ladder
+(zero-shot 109.91 → ICL 29.40 → +cov 44.61 → finetuned 13.83 ID) is the
+bridge deliverable. `docs/results/` has plots; `docs/methods/`
 documents the Bilinear/OSS/RSS LoRA variants.
 
 ---
@@ -258,5 +279,6 @@ after resolving `pyproject.toml`.
 leakage fix, evaluation harness, baselines, fixed-pool k-sweep re-runs;
 Phase 2: retrieval-based example selection — selection.py, grid + analysis;
 Phase 3: example presentation — presentation.py, staged grid + analysis,
-shared-scaling headline result)
+shared-scaling headline result; Phase 4: training-free OP conditioning —
+covariates.py, staged grid + analysis, negative result + adaptation ladder)
 **Upstream Maintainer**: Severin Bergsmann (sbergsmann)

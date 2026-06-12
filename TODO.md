@@ -5,10 +5,11 @@ Each phase is scoped to roughly one working session and is self-contained:
 goal, motivation, tasks, deliverable, and pointers into the codebase.
 Later phases depend on earlier ones where noted.
 
-Context: our current pipeline (`src/fusiontimeseries/benchmarking/few_shot/`)
+Context: the original pipeline (`src/fusiontimeseries/benchmarking/few_shot/`)
 flat-concatenates k example context→target pairs in front of the query context,
 selects examples **randomly**, and z-scores each example independently.
-Best result so far: TiRex k=5 at 42.33 ID / 33.89 OOD RMSE. Supervisor input
+Starting point: TiRex k=5 at 42.33 ID / 33.89 OOD RMSE; best legit config
+after Phases 2–3: Bolt mmr_euclid + shared scaling k=10 at 23.28 ID. Supervisor input
 (Fabian, Jan 9): select benchmark examples by **operating parameters** or
 **nearest neighbour to context**; conditioning references FiLM
 ([1709.07871](https://arxiv.org/abs/1709.07871)) and DiT
@@ -182,7 +183,72 @@ the principled alternative natively.
 
 ---
 
-## Phase 4 — Training-free operating-parameter conditioning (bridge phase)
+## Phase 4 — Point forecast & ensembling (cheap decoding wins)
+
+**Goal**: re-decode the existing best configs with the RMSE-optimal point
+statistic (mean, not median) and aggregate forecasts across example sets
+and models.
+
+**Why**: the metric is RMSE of a time-averaged tail of a positive, bursty,
+right-skewed flux — the RMSE-optimal point forecast is the conditional
+**mean**, but every model wrapper in `rerun_ksweep.py` decodes the
+**median** (`Utils.median_forecast`; TiRex's `forecast()` even returns a
+mean we currently discard). P50 systematically underestimates the level of
+a right-skewed quantity. Ensembling: bagging TSFM forecasts reduces
+variance by up to 54% ([2508.16641](https://arxiv.org/abs/2508.16641)).
+Both surfaced in the 2026-06-12 deep-research pass; both are one-knob
+changes through the existing harness. Caveat: shared scaling (Phase 3)
+already fixed level transfer, so the mean-vs-median delta may be smaller
+now than it would have been pre-Phase-3 — still nearly free to test.
+
+**Tasks**:
+- [ ] Add a `point_stat` option (median | mean) to the wrappers in
+      `rerun_ksweep.py` (`PREDICT_FACTORIES`): TiRex returns the mean
+      natively; for Bolt / Chronos-2 / TimesFM approximate the mean from
+      the 9 quantiles (quantile-average / trapezoid).
+- [ ] Re-run k=0 anchors + the best Phase-3 configs (Bolt mmr_euclid shared
+      k=10, TiRex ctx_euclid shared k=10, oracle_tail shared as ceiling)
+      with mean decoding; `paired_comparison` mean vs median per model.
+- [ ] Seed-ensembling: average forecasts (or predicted tail means) across
+      the 20 example-sampling seeds *before* scoring, vs the current
+      per-seed-RMSE aggregation; harness-level variant only.
+- [ ] Cross-model ensemble: average per-trace tail-mean estimates of the
+      two best models (Bolt + TiRex), ID and OOD.
+
+**Deliverable**: decoding/ensembling table; decision whether mean decoding
+becomes the default for all later phases.
+
+---
+
+## Phase 5 — ICL on top of the finetuned model (synergy test)
+
+**Goal**: run our best retrieval-ICL config through Severin's finetuned
+Chronos-2 (BilinearLoRA) and test whether ICL and finetuning compose.
+
+**Why**: RAF ([2411.08249](https://arxiv.org/pdf/2411.08249)) reports
+retrieval and finetuning are synergistic ("Advanced RAF" beats either
+alone). Finetuned Chronos-2 BilinearLoRA sits at 13.83 ID / 4.86 OOD — if
+ICL adds anything on top, that is the strongest joint result available to
+the thesis; if it doesn't (or hurts: the finetuned model never saw
+concatenated splices during finetuning), that is a citable negative result.
+Either way it bridges both halves of the project.
+
+**Tasks**:
+- [ ] Load the BilinearLoRA checkpoint behind the existing predict-fn
+      interface (extend `make_chronos2_pipeline` in `rerun_ksweep.py`;
+      checkpoint path/loading from Severin's `experiments/` side).
+- [ ] Sanity anchor: finetuned k=0 through our harness must reproduce
+      Severin's reported numbers on the same 11 traces before anything else.
+- [ ] Run finetuned + best concat config (shared scaling, mmr_euclid and
+      ctx_euclid, k ∈ {5, 10}) + a random__shared control.
+- [ ] `paired_comparison`: finetuned+ICL vs finetuned k=0, and vs base+ICL.
+
+**Deliverable**: the "does adaptation stack?" table — 2×2
+(base/finetuned × k=0/k-best).
+
+---
+
+## Phase 6 — Training-free operating-parameter conditioning (bridge phase) ✅ (2026-06-12, implemented as the "v4" grid)
 
 **Goal**: condition forecasts on operating parameters **without any
 training**, via Chronos-2's zero-shot covariate support.
@@ -194,31 +260,52 @@ known-future / categorical covariates through group attention with no
 fine-tuning ([Amazon Science](https://www.amazon.science/blog/introducing-chronos-2-from-univariate-to-universal-forecasting),
 [model card](https://huggingface.co/amazon/chronos-2)).
 
-**Tasks**:
-- [ ] Pass the 4 operating parameters as constant covariate channels
-      (known-future, since they're static per simulation) alongside the
-      query flux series (needs Phase 0).
-- [ ] Combine with ICL: examples + their covariates + query + its
-      covariates in one group.
-- [ ] Evaluate: zero-shot vs +covariates vs ICL vs ICL+covariates
-      (k from Phase 2/3 best config), ID and OOD.
-- [ ] Compare against Severin's finetuned OPC numbers (BilinearLoRA family)
-      and the paper's GPR baseline — "how far does training-free
-      conditioning get?"
+**Tasks** (all in `few_shot/covariates.py`; grid `run_covariates_grid.py`
+→ `results/few_shot_v4_covariates/`; analysis `analyze_covariates.py` →
+`docs/results/fewshot/covariates_table.md`):
+- [x] Pass the 4 operating parameters as covariate channels — NOT as
+      constants: Chronos-2 instance-norms each row independently
+      (affine-invariant), so a constant channel's VALUE is erased exactly
+      (verified bit-identical forecasts for tri-state-matched values;
+      smoke S1a). Encoded instead as STEP functions over the concat ICL
+      stream (example params over each segment, query params + known-future
+      rows); zeroshot+constant-channels kept as the empirical degeneracy
+      anchor (it improves 109.91 → 81.02 ID while provably carrying no
+      parameter information — pure row-presence perturbation).
+- [x] Combine with ICL: {random, op_knn, ctx_euclid, mmr_euclid,
+      oracle_tail} × k{1,3,5,10} × {no-cov, +cov, permuted-control} under
+      shared scaling, identical example sets hard-asserted; plus the
+      group+cov block (structurally inert as predicted, slightly harmful).
+- [x] Evaluate: **negative result with clean attribution** — +cov ≈
+      permuted control everywhere (random k=10: 48.48 vs 47.90 ID), i.e.
+      the channels add presence, not parameter information; the presence
+      homogenizes every strategy toward ≈47 ID, destroying retrieval/oracle
+      gains (oracle k=10: 23.31 → 47.28 ID, CI [8.1, 35.0]) while helping
+      weak anchors (random OOD −6, also matched by the control).
+- [x] Compare against Severin's finetuned OPC + paper GPR — adaptation
+      ladder table + `docs/results/fewshot/adaptation_ladder.png`:
+      training-free conditioning does NOT bridge ICL (29.40 ID best legit)
+      to finetuned OPC (13.83 ID); absolute-level conditioning cannot
+      survive the per-row instance norm without training.
 
 **Deliverable**: the ladder table (adaptation cost vs RMSE) — the bridge
-result connecting both sides of the project.
+result connecting both sides of the project. ✅
 
 ---
 
-## Phase 5 — Analysis: where do the gains come from?
+## Phase 7 — Analysis: where do the gains come from?
 
 **Goal**: explain the mechanism behind few-shot gains, not just measure them.
 
 **Why**: the benchmark metric (RMSE of time-averaged tail) is dominated by
 the predicted saturation *level*. Understanding whether ICL calibrates
 amplitude or genuinely improves dynamics shapes the thesis narrative and
-justifies the retrieval design choices.
+justifies the retrieval design choices. Frame against the context-parroting
+line ([2505.11349](https://arxiv.org/abs/2505.11349),
+[2409.15771](https://arxiv.org/abs/2409.15771)): TSFMs forecast chaotic
+systems largely by copying context motifs, yet preserve invariant
+statistics even after point forecasts fail — the tail mean is exactly such
+an invariant statistic.
 
 **Tasks**:
 - [ ] Error decomposition per trace: bias of the predicted tail mean vs
@@ -236,7 +323,7 @@ justifies the retrieval design choices.
 
 ---
 
-## Phase 6 — Write-up & integration
+## Phase 8 — Write-up & integration
 
 **Goal**: fold everything into the README, docs, and thesis material.
 
@@ -250,7 +337,15 @@ justifies the retrieval design choices.
       comparable in the thesis.
 - [ ] Related-work paragraph: TimesFM-ICF, Chronos-2 ICL, retrieval-augmented
       forecasting (RAF / TS-RAG / TimeRAF / RAFT), ICL example-selection
-      findings from NLP.
+      findings from NLP (Liu et al.
+      [2101.06804](https://arxiv.org/abs/2101.06804)).
+- [ ] Discussion framing from the chaotic-systems literature: context
+      parroting + invariant statistics
+      ([2505.11349](https://arxiv.org/abs/2505.11349),
+      [2409.15771](https://arxiv.org/abs/2409.15771)), transformer-ICL
+      collapse-to-the-mean theory
+      ([2510.09776](https://arxiv.org/abs/2510.09776)); mean-vs-median
+      point-estimate justification (RMSE → conditional mean).
 
 **Deliverable**: updated README + docs; thesis-ready tables and figures.
 
@@ -258,25 +353,27 @@ justifies the retrieval design choices.
 
 ## Suggested session order & parallelization
 
-Phases form two parallel bands separated by merge points; 5 and 6 are
+Phases form parallel bands separated by merge points; 7 and 8 are
 sequential at the end:
 
 ```
-Phase 0 (OP plumbing) ──┐            ┌── Phase 2 (retrieval) ──┐
-                        ├── merge ───┼── Phase 3 (format)     ─┼── Phase 5 ── Phase 6
-Phase 1 (harness)     ──┘            └── Phase 4 (covariates) ─┘
-        parallel ∥                          parallel ∥
+Phase 0 (OP plumbing) ──┐           ┌── Phase 2 (retrieval) ✅ ─┐   ┌── Phase 4 (decoding/ensemble) ─┐
+                        ├── merge ──┤                           ├───┼── Phase 5 (ICL × finetuned)   ─┼── Phase 7 ── Phase 8
+Phase 1 (harness)     ──┘           └── Phase 3 (format) ✅    ─┘   └── Phase 6 (covariates) ✅     ─┘
+        parallel ∥                                                          parallel ∥
 ```
 
 | Session | Phase | Depends on | Parallel with |
 | ------- | ----- | ---------- | ------------- |
 | 1a      | Phase 0 — OP plumbing ✅ | — | 1b |
 | 1b      | Phase 1 — harness ✅ | — | 1a |
-| 2a      | Phase 2 — retrieval ✅ | 0, 1 | 2b, 2c |
-| 2b      | Phase 3 — presentation format | 1 | 2a, 2c |
-| 2c      | Phase 4 — covariate conditioning | 0, 1 | 2a, 2b |
-| 3       | Phase 5 — analysis | 2–4 | — |
-| 4       | Phase 6 — write-up | all | — |
+| 2a      | Phase 2 — retrieval ✅ | 0, 1 | 2b |
+| 2b      | Phase 3 — presentation format ✅ | 1 | 2a |
+| 3a      | Phase 4 — decoding & ensembling | 3 | 3b, 3c |
+| 3b      | Phase 5 — ICL × finetuning | 2, 3 + Severin's checkpoint | 3a, 3c |
+| 3c      | Phase 6 — covariate conditioning ✅ | 0, 1 (best config from 2/3) | 3a, 3b |
+| 4       | Phase 7 — analysis | 2–6 | — |
+| 5       | Phase 8 — write-up | all | — |
 
 Notes for parallel worktree sessions:
 - Keep each phase's code in its own module (`few_shot/harness.py`,
@@ -286,7 +383,7 @@ Notes for parallel worktree sessions:
   distinct results subdirectory per phase to avoid clobbering.
 - Author code in parallel, but stagger the heavy benchmark grids — they
   share one machine's GPU/memory.
-- Phase 4's "ICL + covariates" combo can run with the default config
+- Phase 6's "ICL + covariates" combo can run with the default config
   (k=5, random) first and re-run with the best Phase 2/3 config after merge.
 
 ## References
@@ -297,6 +394,11 @@ Notes for parallel worktree sessions:
 - TS-RAG — https://arxiv.org/pdf/2503.07649
 - TimeRAF — https://arxiv.org/pdf/2412.20810
 - RAFT — https://arxiv.org/pdf/2511.05859
+- Liu et al., What Makes Good In-Context Examples for GPT-3? — https://arxiv.org/abs/2101.06804
+- Modi & Pan, ensembling TSFM forecasts — https://arxiv.org/abs/2508.16641
+- Context parroting (Zhang & Gilpin) — https://arxiv.org/abs/2505.11349
+- Zero-shot forecasting of chaotic systems (Zhang & Gilpin) — https://arxiv.org/abs/2409.15771
+- Why Do Transformers Fail to Forecast Time Series In-Context? — https://arxiv.org/abs/2510.09776
 - FiLM — https://arxiv.org/abs/1709.07871
 - DiT (adaLN conditioning) — https://arxiv.org/abs/2212.09748
 - GyroSwin (evaluation protocol + baselines) — https://arxiv.org/abs/2510.07314

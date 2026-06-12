@@ -157,6 +157,22 @@ Phase 3 (`benchmarking/few_shot/presentation.py`) tests the presentation fixes P
 - **Ordering is a non-factor**: most-similar-last vs -first vs shuffled changes ctx_euclid by ±1–4 RMSE with no consistent direction (shuffled-order seed std ≤ 6).
 - **Truncating examples backfires under shared scaling** (TiRex ctx_euclid k=10: 42.9 truncated vs 30.8 full; trunc k=20 also loses to full k=10) — truncation cuts off exactly the saturation tail that shared scaling lets the model copy. The context-budget motivation didn't survive contact with the level mechanism.
 
+#### Operating-parameter conditioning without training
+
+Phase 4 (`benchmarking/few_shot/covariates.py`) closes the adaptation ladder between ICL and Severin's finetuned operating-parameter conditioning: the 4 static parameters (q, ŝ, R/L_T, R/L_n) are passed to Chronos-2 — the only benchmarked model with zero-shot covariate support — as extra covariate channels, with no training. Grid in `results/few_shot_v4_covariates/` (Chronos-2, shared scaling, +cov vs no-cov vs permuted-params control on identical example sets), table + significance tests in [docs/results/fewshot/covariates_table.md](docs/results/fewshot/covariates_table.md).
+
+A structural result shapes the design: Chronos-2 instance-norms every covariate row independently (positive-affine invariant, so raw vs normalized parameter values are provably indistinguishable), which means a **constant** channel has its value erased exactly — verified down to bit-identical forecasts for two different parameter values engineered to share the post-norm rows. Static parameters can only act through *within-row contrast*, so they are encoded as step functions over the ICL stream (each example's params over its segment, the query's over the query segment).
+
+| rung (Chronos-2 throughout) | ID RMSE | OOD RMSE |
+| --------------------------------------------- | ------ | ------ |
+| zero-shot | 109.91 | 85.86 |
+| ICL, best legit (mmr_euclid shared k=5) | 29.40 | 42.56 |
+| ICL + OP covariates, best legit (ctx_euclid k=10) | 44.61 | 40.08 |
+| oracle_tail ceiling (cheats, k=10) | 23.31 | 23.99 |
+| finetuned OPC (BilinearLoRA, cross-run) | 13.83 | 4.86 |
+
+**Finding — training-free conditioning does not work, and the controls show why.** +cov is statistically indistinguishable from the permuted-params control at every comparable cell (e.g. random k=10: 48.48 vs 47.90 ID) — the channels contribute *presence*, not parameter *information*. That presence acts as a level-homogenizing perturbation: it pulls every configuration toward ≈47 ID regardless of selection strategy, which *helps* weak anchors (zero-shot + constant channels: 109.91 → 81.02 ID, despite the channels provably carrying no value information; random OOD improves ~6 RMSE, matched by the permuted control) and *destroys* strong ones (oracle k=10: 23.31 → 47.28 ID, bootstrap CI [8.1, 35.0]). Group-mode covariates are structurally inert as predicted and slightly harmful in practice. The conditioning signal this metric needs — absolute level from absolute parameters — cannot survive the per-row instance norm, which is precisely the gap finetuned conditioning (next section) closes: see the full ladder in [docs/results/fewshot/adaptation_ladder.png](docs/results/fewshot/adaptation_ladder.png).
+
 ### 4. Finetuning Results
 
 *by Severin Bergsmann*
