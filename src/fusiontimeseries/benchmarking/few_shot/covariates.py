@@ -10,18 +10,24 @@ library's own missing value, masked anywhere including mid-stream).
 THE load-bearing fact (chronos ``chronos_bolt.py`` InstanceNorm, also used by
 Chronos-2): every variate row is instance-normalized INDEPENDENTLY with
 ``loc = nanmean(row)``, ``scale = sqrt(nanmean((row - loc)^2))`` and
-``scale = eps=1e-5 where scale == 0``. Consequences, all provable from the
-norm being invariant under positive-affine maps ``row -> a*row + b`` (a > 0):
+``scale = eps=1e-5 where scale == 0`` (Chronos-2 additionally applies
+arcsinh after standardization — monotone, so every invariance statement
+below carries over). Consequences, all provable from the norm being
+invariant under positive-affine maps ``row -> a*row + b`` (a > 0):
 
-- A CONSTANT covariate row erases its value. In exact arithmetic
+- A CONSTANT covariate row erases its VALUE. In exact arithmetic
   ``(c - c)/eps = 0``; in the library's float32 forward the row mean is off
   by up to 1 ulp, so a constant row normalizes to a constant all-0/±1 row —
-  the rounding direction of the mean, a tri-state float32 artifact carrying
-  no physics (self-test C5 checks this against the REAL InstanceNorm).
-  Different constants give model inputs that are identical up to that
-  artifact: passing a static parameter as a constant channel is structurally
-  inert — the ``zeroshot+cov`` anchor and the group+cov cells demonstrate
-  this empirically.
+  the rounding direction of the mean, a tri-state float32 artifact that is a
+  pathological hash of (value, row length), not physics (self-test C5
+  checks this against the REAL InstanceNorm; smoke S1a confirms that two
+  DIFFERENT values engineered to share tri-states give identical outputs).
+  The artifact bits are NOT output-neutral, though: they enter attention
+  like any input, and flipping them shifts the k=0 rollout by ~10-20% rel
+  L2 (smoke S1a/S1b measure this). Constant channels therefore cannot
+  ENCODE the operating point — they inject value-uncorrelated perturbation —
+  which is the precise sense in which the ``zeroshot+cov`` anchor and the
+  group+cov cells are structurally degenerate.
 - Raw parameter values and [0,1]-min-max-normalized values produce identical
   post-norm rows (per-channel positive-affine map), so the choice of encoding
   scale is provably irrelevant; only the WITHIN-ROW relative geometry of
@@ -366,9 +372,10 @@ def make_chronos2_group_covariate_forecast_fn(
     as Phase 3) and adds one constant covariate row per operating parameter
     (+ the matching future row). Group mode has no slot for per-example
     parameters — each example IS its own covariate row — and a per-task
-    CONSTANT channel is erased by Chronos-2's per-row instance norm
-    (module docstring). This variant is therefore structurally inert by
-    construction; it exists to put that claim in the results table.
+    CONSTANT channel has its value erased by Chronos-2's per-row instance
+    norm, surviving only as the tri-state rounding artifact (module
+    docstring). This variant is therefore value-erasing by construction; it
+    exists to put that structural-degeneracy claim in the results table.
 
     Args:
         pipeline: A loaded ``Chronos2Pipeline``.
