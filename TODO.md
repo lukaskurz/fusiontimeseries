@@ -291,6 +291,23 @@ destroy the ft advantage (ft ≈ base at random k=10). OOD is finetuning's
 story alone (67.94 → 34.10; legit ICL adds nothing). Full-window ICL is OOD
 for the 512-trained model (win512 better in all 8 paired cells).
 
+**Follow-ups (open, 2026-06-12)**:
+- [ ] Send Severin the metric note (last section of
+      `docs/results/fewshot/finetuned_icl_table.md`) — his published
+      chronos2 rows are affected — and renew the `lora_weights.pt` ask;
+      when it arrives, re-run is minutes via `--checkpoint` (grid is
+      checkpoint-agnostic, sha256 recorded per cell).
+- [ ] Robustness cell A — step-4000 vs step-200 weights: the shipped
+      checkpoint is the recipe's best-eval pick (step 200 of 4000, noisy
+      25-series eval). The full-model `checkpoint-4000/` still sits in the
+      gitignored `outputs/chronos2-bilinear-selftrained-0/` — extract its
+      `lora_state_dict` BEFORE cleaning outputs/ and run the ft headline
+      cells to settle whether longer training helps or hurts the harness
+      numbers.
+- [ ] Robustness cell B — oracle_tail k10 + zeroshot at win512: completes
+      the window block at the ceiling (k=0 is window-invariant by
+      construction — only oracle is informative; cheap).
+
 ---
 
 ## Phase 6 — Training-free operating-parameter conditioning (bridge phase) ✅ (2026-06-12, implemented as the "v4" grid)
@@ -361,6 +378,14 @@ an invariant statistic.
       autoregressive horizon of the TSFMs? Nobody has measured this.
 - [ ] Per-trace breakdown: which of the 11 test traces benefit most, and do
       they correlate with example similarity (links back to Phase 2)?
+- [ ] Target the ORACLE–LEGIT GAP (sharpened by Phase 5/v6: oracle 9.39 vs
+      best legit 18.62 ID, 10.89 vs ~32 OOD — the pool CONTAINS the right
+      examples even for OOD queries, context-distance retrieval just cannot
+      find them): characterize what the oracle's picks have that ctx/mmr
+      distance misses (tail level? params? phase?). Candidate selector to
+      re-test ON THE FINETUNED MODEL: op_knn — uniquely motivated there
+      (the model is literally conditioned on those params; Phase-2's
+      "op_knn ≈ ctx" verdict was base-model only).
 - [ ] Forecast plots per strategy for docs/results/ (match the style of
       Severin's zeroshot/finetuning plots).
 
