@@ -117,6 +117,20 @@ src/fusiontimeseries/
 │       │                             #   finetuned_icl_table.md +
 │       │                             #   finetuned_synergy.png + regenerated
 │       │                             #   adaptation_ladder.png
+│       ├── run_mechanism_dump.py     # Phase-7 dump: 13 headline cells re-run
+│       │                             #   via the harness forecast_callback
+│       │                             #   hook, FULL forecasts + truths ->
+│       │                             #   results/few_shot_v7_mechanism/
+│       │                             #   (hard-asserted ≡ recorded v5/v6
+│       │                             #   scalars; *_mechanism_dump.json names
+│       │                             #   stay invisible to load_results)
+│       ├── analyze_mechanism.py      # Phase-7 analysis: tail-MSE decomposition
+│       │                             #   (exact b² + e_fluc² identity),
+│       │                             #   tracking horizon + ACF/τ_c/flatline
+│       │                             #   invariant stats, oracle-gap (d_lvl,
+│       │                             #   pick ranks, feature hunt), forecast
+│       │                             #   grids -> mechanism_table.md +
+│       │                             #   mechanism_*.png; --self-test
 │       └── *_fewshot_benchmark.ipynb
 ├── zeroshot/                  # Upstream's zero-shot notebooks (v1.0.0)
 ├── finetuning/
@@ -324,7 +338,22 @@ step-4000 weights worse everywhere than the shipped step-200 best-eval
 pick (results/few_shot_v6_finetuned_step4000/ — overtraining degrades ICL
 most); oracle@win512 19.57 vs 9.39 full → the win512 gain is context
 COMPOSITION (clamp drops wrong-level example mass), not window-length
-mismatch.
+mismatch. Phase-7 mechanism analysis
+(`results/few_shot_v7_mechanism/` full-forecast dumps via the new harness
+forecast_callback hook, 13 cells, every scalar bit-equal to its recorded
+v5/v6 value 143/143; analysis in `docs/results/fewshot/mechanism_table.md`
++ mechanism_*.png + forecast_grid_*.png): ALL gains are level calibration
+— level term absorbs 87–112% of every config-vs-anchor tail-MSE change,
+e_fluc at 0.68–0.89× the chaos floor σ√2 everywhere (nothing phase-tracks;
+√(mean b²) ≡ benchmark RMSE); no genuine horizon extension (medians 8–22
+steps, truth τ_c 8–9; rollouts under-disperse r_σ ≤ 0.6 and over-smooth);
+oracle gap = information limit of the 80-step context: pool always has a
+near level-twin (pool-min d_lvl ≤ 0.9, median 0.23) but retrieval distances
+z-score away the level signal (oracle picks at ctx-rank ~98/245), op_knn on
+the CONDITIONED ft model ≈ random (39.6 vs 40.0 ID; the v6 grid gained 8
+op_knn cells for this probe), best context feature (raw ctx_mean ρ=+0.89)
+caps at min d_lvl ≈ 5 vs oracle 0.26 — closing the gap needs side
+information, not a better 80-step distance.
 `docs/results/` has plots; `docs/methods/`
 documents the Bilinear/OSS/RSS LoRA variants.
 
@@ -343,7 +372,7 @@ after resolving `pyproject.toml`.
 
 ---
 
-**Last Updated**: 2026-06-12 (Phase 0/1: operating-params mapping, pool
+**Last Updated**: 2026-06-13 (Phase 0/1: operating-params mapping, pool
 leakage fix, evaluation harness, baselines, fixed-pool k-sweep re-runs;
 Phase 2: retrieval-based example selection — selection.py, grid + analysis;
 Phase 3: example presentation — presentation.py, staged grid + analysis,
@@ -353,5 +382,9 @@ Phase 5: point-stat decoding + ensembling — run_decoding_grid.py + analysis,
 per-model mean-vs-median decision, seed/model ensembling verdicts;
 Phase 6: ICL x finetuning — train_bilinear.py self-trained BilinearLoRA,
 finetuned.py + run_finetuned_grid.py + analysis, synergy verdict +
-[:-80] metric audit + corrected adaptation ladder)
+[:-80] metric audit + corrected adaptation ladder;
+Phase 7: mechanism analysis — harness forecast_callback hook,
+run_mechanism_dump.py full-forecast dumps + analyze_mechanism.py
+(decomposition / horizon / oracle-gap / forecast grids), v6 op_knn probe,
+level-calibration verdict)
 **Upstream Maintainer**: Severin Bergsmann (sbergsmann)

@@ -35,6 +35,8 @@ Cells are `ID / OOD` tail RMSE (±std over seeds where multi-seed).
 | mmr_euclid k=5 | 27.06 / 42.64 | 18.62 / 36.00 | -8.45 | -6.64 |
 | mmr_euclid k=10 | 32.98 / 42.92 | 20.80 / 37.22 | -12.17 | -5.70 |
 | oracle_tail k=10 (cheats) | 21.61 / 21.83 | 9.39 / 10.89 | -12.23 | -10.95 |
+| op_knn k=5 | 45.07 / 32.43 | 39.55 / 32.31 | -5.51 | -0.12 |
+| op_knn k=10 | 44.98 / 38.25 | 39.62 / 31.71 | -5.36 | -6.54 |
 | random k=10 | 39.18±8.23 / 46.07±6.35 | 38.87±9.79 / 46.23±8.15 | -0.31 | +0.17 |
 
 ### Decoding: median
@@ -47,6 +49,8 @@ Cells are `ID / OOD` tail RMSE (±std over seeds where multi-seed).
 | mmr_euclid k=5 | 29.40 / 42.56 | 26.10 / 36.36 | -3.30 | -6.20 |
 | mmr_euclid k=10 | 37.32 / 45.11 | 29.13 / 38.15 | -8.19 | -6.96 |
 | oracle_tail k=10 (cheats) | 23.31 / 23.99 | 16.72 / 15.25 | -6.59 | -8.74 |
+| op_knn k=5 | 47.35 / 35.82 | 44.51 / 35.94 | -2.85 | +0.11 |
+| op_knn k=10 | 47.67 / 38.89 | 44.70 / 34.89 | -2.97 | -4.00 |
 | random k=10 | 44.42±8.36 / 49.18±6.63 | 44.58±11.04 / 49.82±9.91 | +0.16 | +0.64 |
 
 ## Paired comparisons
@@ -87,6 +91,18 @@ Cells are `ID / OOD` tail RMSE (±std over seeds where multi-seed).
 | [mean] oracle_tail k=10: ft+ICL vs ft k0 | OOD | 10.89 | 34.10 | -23.22 | [-40.46, -7.48] | 0.002 | 0.125 |
 | [mean] oracle_tail k=10: base+ICL vs base k0 | ID | 21.61 | 89.51 | -67.90 | [-83.33, -50.68] | 0.000 | 0.031 |
 | [mean] oracle_tail k=10: base+ICL vs base k0 | OOD | 21.83 | 67.94 | -46.10 | [-64.60, -18.49] | 0.000 | 0.062 |
+| [mean] op_knn k=5: ft vs base | ID | 39.55 | 45.07 | -5.51 | [-17.02, 0.38] | 0.074 | 0.219 |
+| [mean] op_knn k=5: ft vs base | OOD | 32.31 | 32.43 | -0.12 | [-9.67, 4.06] | 0.988 | 0.812 |
+| [mean] op_knn k=5: ft+ICL vs ft k0 | ID | 39.55 | 22.20 | +17.35 | [2.08, 31.66] | 0.000 | 0.062 |
+| [mean] op_knn k=5: ft+ICL vs ft k0 | OOD | 32.31 | 34.10 | -1.79 | [-16.01, 4.66] | 0.628 | 0.812 |
+| [mean] op_knn k=5: base+ICL vs base k0 | ID | 45.07 | 89.51 | -44.44 | [-58.09, -30.90] | 0.000 | 0.031 |
+| [mean] op_knn k=5: base+ICL vs base k0 | OOD | 32.43 | 67.94 | -35.51 | [-58.02, -0.72] | 0.047 | 0.312 |
+| [mean] op_knn k=10: ft vs base | ID | 39.62 | 44.98 | -5.36 | [-15.52, -1.19] | 0.007 | 0.094 |
+| [mean] op_knn k=10: ft vs base | OOD | 31.71 | 38.25 | -6.54 | [-11.24, -1.16] | 0.033 | 0.125 |
+| [mean] op_knn k=10: ft+ICL vs ft k0 | ID | 39.62 | 22.20 | +17.42 | [0.24, 33.33] | 0.031 | 0.219 |
+| [mean] op_knn k=10: ft+ICL vs ft k0 | OOD | 31.71 | 34.10 | -2.39 | [-15.68, 3.67] | 0.523 | 0.812 |
+| [mean] op_knn k=10: base+ICL vs base k0 | ID | 44.98 | 89.51 | -44.53 | [-62.64, -31.06] | 0.000 | 0.031 |
+| [mean] op_knn k=10: base+ICL vs base k0 | OOD | 38.25 | 67.94 | -29.69 | [-49.08, -0.87] | 0.047 | 0.312 |
 | [mean] random k=10: ft vs base | ID | 40.02 | 39.99 | +0.03 | [-1.39, 2.10] | 0.960 | 1.000 |
 | [mean] random k=10: ft vs base [trace_seed] | ID | 40.02 | 39.99 | +0.03 | [-2.16, 2.15] | 0.997 | 0.944 |
 | [mean] random k=10: ft vs base | OOD | 46.91 | 46.48 | +0.43 | [-0.68, 3.62] | 0.508 | 0.625 |
@@ -123,6 +139,18 @@ Cells are `ID / OOD` tail RMSE (±std over seeds where multi-seed).
 | [median] oracle_tail k=10: ft+ICL vs ft k0 | OOD | 15.25 | 33.03 | -17.79 | [-33.21, 3.97] | 0.058 | 0.438 |
 | [median] oracle_tail k=10: base+ICL vs base k0 | ID | 23.31 | 109.91 | -86.60 | [-103.00, -67.89] | 0.000 | 0.031 |
 | [median] oracle_tail k=10: base+ICL vs base k0 | OOD | 23.99 | 85.86 | -61.87 | [-84.87, -30.29] | 0.000 | 0.062 |
+| [median] op_knn k=5: ft vs base | ID | 44.51 | 47.35 | -2.85 | [-12.55, 3.37] | 0.431 | 0.312 |
+| [median] op_knn k=5: ft vs base | OOD | 35.94 | 35.82 | +0.11 | [-8.34, 5.32] | 0.994 | 0.812 |
+| [median] op_knn k=5: ft+ICL vs ft k0 | ID | 44.51 | 25.33 | +19.17 | [7.18, 29.99] | 0.000 | 0.062 |
+| [median] op_knn k=5: ft+ICL vs ft k0 | OOD | 35.94 | 33.03 | +2.90 | [-16.95, 10.80] | 0.675 | 0.812 |
+| [median] op_knn k=5: base+ICL vs base k0 | ID | 47.35 | 109.91 | -62.55 | [-75.09, -48.79] | 0.000 | 0.031 |
+| [median] op_knn k=5: base+ICL vs base k0 | OOD | 35.82 | 85.86 | -50.03 | [-73.41, -11.13] | 0.017 | 0.188 |
+| [median] op_knn k=10: ft vs base | ID | 44.70 | 47.67 | -2.97 | [-10.64, 2.18] | 0.281 | 0.312 |
+| [median] op_knn k=10: ft vs base | OOD | 34.89 | 38.89 | -4.00 | [-6.59, -2.04] | 0.019 | 0.312 |
+| [median] op_knn k=10: ft+ICL vs ft k0 | ID | 44.70 | 25.33 | +19.36 | [5.84, 32.01] | 0.000 | 0.062 |
+| [median] op_knn k=10: ft+ICL vs ft k0 | OOD | 34.89 | 33.03 | +1.85 | [-17.86, 8.63] | 0.805 | 0.812 |
+| [median] op_knn k=10: base+ICL vs base k0 | ID | 47.67 | 109.91 | -62.24 | [-74.93, -47.04] | 0.000 | 0.031 |
+| [median] op_knn k=10: base+ICL vs base k0 | OOD | 38.89 | 85.86 | -46.97 | [-69.77, -16.09] | 0.009 | 0.125 |
 | [median] random k=10: ft vs base | ID | 45.86 | 45.16 | +0.70 | [-0.94, 2.40] | 0.380 | 0.688 |
 | [median] random k=10: ft vs base [trace_seed] | ID | 45.86 | 45.16 | +0.70 | [-1.35, 2.69] | 0.530 | 0.687 |
 | [median] random k=10: ft vs base | OOD | 50.75 | 49.60 | +1.15 | [-0.92, 4.97] | 0.279 | 0.438 |
@@ -269,6 +297,12 @@ SURVIVED finetuning**: oracle_tail k=10 stacks significantly on the ft
 model (9.39 ID, p=0.043; 10.89 OOD, p=0.002 vs ft k0) and the ft model
 exploits oracle examples better than the base does (−12.2 ID, p=0.032) —
 the bottleneck is retrieval quality, not the model's in-context ability.
+The Phase-7 op_knn probe (2026-06-13) closes the obvious loophole: even on
+this param-CONDITIONED model, selecting examples by operating-parameter
+distance scores ≈ random (op_knn k5 39.55 vs random k10 40.02 ID mean;
+mmr_euclid k5: 18.62) — the operating parameters do not identify
+level-matched examples either; Phase-2's base-model "op_knn ≈ ctx" verdict
+generalizes (mechanism analysis: `mechanism_table.md`).
 (4) **Bad examples destroy the finetuned advantage**: with random k=10
 examples ft ≈ base exactly (40.02 vs 39.99 ID; +0.03, n.s. even at
 trace_seed resolution) — random examples drag the ft model from 22.20 UP to

@@ -359,7 +359,7 @@ result connecting both sides of the project. ✅
 
 ---
 
-## Phase 7 — Analysis: where do the gains come from?
+## Phase 7 — Analysis: where do the gains come from? ✅ (2026-06-13, implemented as the "v7" mechanism dump + analyzer)
 
 **Goal**: explain the mechanism behind few-shot gains, not just measure them.
 
@@ -373,27 +373,49 @@ systems largely by copying context motifs, yet preserve invariant
 statistics even after point forecasts fail — the tail mean is exactly such
 an invariant statistic.
 
-**Tasks**:
-- [ ] Error decomposition per trace: bias of the predicted tail mean vs
-      RMSE of the (mean-removed) fluctuations. Hypothesis: ICL gains are
-      mostly amplitude calibration.
-- [ ] Correlation-time / rollout-stability analysis (the GyroSwin paper
-      reports ~110 steps vs ~7–10 for baselines): does ICL extend the usable
-      autoregressive horizon of the TSFMs? Nobody has measured this.
-- [ ] Per-trace breakdown: which of the 11 test traces benefit most, and do
-      they correlate with example similarity (links back to Phase 2)?
-- [ ] Target the ORACLE–LEGIT GAP (sharpened by Phase 5/v6: oracle 9.39 vs
-      best legit 18.62 ID, 10.89 vs ~32 OOD — the pool CONTAINS the right
-      examples even for OOD queries, context-distance retrieval just cannot
-      find them): characterize what the oracle's picks have that ctx/mmr
-      distance misses (tail level? params? phase?). Candidate selector to
-      re-test ON THE FINETUNED MODEL: op_knn — uniquely motivated there
-      (the model is literally conditioned on those params; Phase-2's
-      "op_knn ≈ ctx" verdict was base-model only).
-- [ ] Forecast plots per strategy for docs/results/ (match the style of
-      Severin's zeroshot/finetuning plots).
+**Tasks** (dumps `few_shot/run_mechanism_dump.py` →
+`results/few_shot_v7_mechanism/` — 13 headline cells re-run with full
+forecasts captured via a new `forecast_callback` harness hook, every scalar
+bit-equal to its recorded v5/v6 value (143/143); analysis
+`analyze_mechanism.py` → `docs/results/fewshot/mechanism_table.md` + figures):
+- [x] Error decomposition per trace — exact identity
+      `tail MSE = b² + e_fluc²` (b = tail-mean bias ≡ the JSONs' `error`).
+      Hypothesis CONFIRMED and sharpened: in all 16 config-vs-anchor rows
+      the level term absorbs 87–112% of the change, and e_fluc sits at
+      0.68–0.89× the chaos floor σ·√2 for every config — adaptation buys
+      level calibration and nothing else; √(mean b²) ≡ the benchmark RMSE.
+- [x] Correlation-time / rollout-stability — tracking horizon on
+      ε̃ = smoothed |ŷ−y|/σ_y (τ 0.5/1.0/1.5, censored at 186; Pearson
+      rejected — saturated turbulence decorrelates even perfect-statistics
+      forecasts): NO genuine horizon extension (medians 8–22 steps; truth's
+      own τ_c is 8–9; ft-oracle's apparent 49 is a level effect). Invariant
+      stats: all TSFM rollouts under-disperse (r_σ ≤ 0.6, flatlines
+      common) and over-smooth (τ_c 12–17 vs truth 9); only oracle-quality
+      examples keep truth-like ACF (d_acf 0.151). GyroSwin ~110 framed
+      qualitative-only.
+- [x] Per-trace breakdown — retrieval's RMSE gain concentrates in the two
+      highest-level ID traces (it_8/it_262, k0 errors −39/−36 → +2/+16);
+      median per-trace improvement ≈ 0. OOD = systematic over-prediction
+      legit ICL barely moves.
+- [x] ORACLE–LEGIT GAP characterized: pool-min d_lvl ≤ 0.9 for ALL 11
+      queries (median 0.23) — the pool always has a near level-twin; oracle
+      picks rank ~98/245 by ctx distance (chance ≈122) because retrieval
+      distances z-score away exactly the level signal; ρ(d_op, d_lvl)=+0.49
+      but op_knn ON THE FINETUNED MODEL ≈ random (39.6 vs 40.0 ID; mmr
+      18.62) — Phase-2's verdict generalizes, params don't surface
+      level-matches either; best context feature (raw ctx_mean, ρ=+0.89)
+      caps at min d_lvl ≈ 5 vs oracle 0.26; improvement-vs-best-pick cloud
+      weak (R²=0.20) — composition (the win512 effect) carries the rest.
+      Closing the gap needs side information, not a better 80-step distance.
+- [x] Forecast plots per strategy — `forecast_grid_<config>_{id,ood}.png`
+      for 7 headline configs (truth+forecast overlay, notebook style).
 
-**Deliverable**: analysis notebook + figures; the "why it works" section.
+**Deliverable**: the "why it works" section ✅ — delivered as scripts +
+figures (`run_mechanism_dump.py` / `analyze_mechanism.py` →
+`docs/results/fewshot/`), NOT a notebook (deliberate deviation: repo
+convention since Phase 2 — pre-commit is disabled, notebook outputs are
+hazardous to commit, and scripts keep the hard consistency asserts
+re-runnable).
 
 ---
 
@@ -446,7 +468,7 @@ Phase 1 (harness)     ──┘           └── Phase 3 (format) ✅    ─�
 | 3a      | Phase 4 — decoding & ensembling ✅ | 3 | 3b, 3c |
 | 3b      | Phase 5 — ICL × finetuning ✅ (self-trained checkpoint) | 2, 3 + Severin's checkpoint | 3a, 3c |
 | 3c      | Phase 6 — covariate conditioning ✅ | 0, 1 (best config from 2/3) | 3a, 3b |
-| 4       | Phase 7 — analysis | 2–6 | — |
+| 4       | Phase 7 — analysis ✅ | 2–6 | — |
 | 5       | Phase 8 — write-up | all | — |
 
 Notes for parallel worktree sessions:

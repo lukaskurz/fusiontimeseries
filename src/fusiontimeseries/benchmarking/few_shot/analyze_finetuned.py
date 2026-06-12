@@ -775,6 +775,12 @@ SURVIVED finetuning**: oracle_tail k=10 stacks significantly on the ft
 model (9.39 ID, p=0.043; 10.89 OOD, p=0.002 vs ft k0) and the ft model
 exploits oracle examples better than the base does (−12.2 ID, p=0.032) —
 the bottleneck is retrieval quality, not the model's in-context ability.
+The Phase-7 op_knn probe (2026-06-13) closes the obvious loophole: even on
+this param-CONDITIONED model, selecting examples by operating-parameter
+distance scores ≈ random (op_knn k5 39.55 vs random k10 40.02 ID mean;
+mmr_euclid k5: 18.62) — the operating parameters do not identify
+level-matched examples either; Phase-2's base-model "op_knn ≈ ctx" verdict
+generalizes (mechanism analysis: `mechanism_table.md`).
 (4) **Bad examples destroy the finetuned advantage**: with random k=10
 examples ft ≈ base exactly (40.02 vs 39.99 ID; +0.03, n.s. even at
 trace_seed resolution) — random examples drag the ft model from 22.20 UP to
