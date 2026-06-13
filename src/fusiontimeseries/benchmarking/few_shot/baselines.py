@@ -75,12 +75,23 @@ def make_knn_copy_forecast(
     k: int = 1,
     tail: int = 80,
     rescale: bool = False,
+    distance: str = "zscore",
 ) -> ForecastFn:
     """kNN-copy baseline: retrieve nearest pool traces, copy their tail level.
 
-    Distance is Euclidean between z-scored contexts (query first 80 steps vs
-    each pool example's 80-step context). Ties are broken by pool order
-    (stable sort).
+    The neighbour DISTANCE selects which signal drives retrieval:
+
+    - ``"zscore"`` (default): Euclidean between per-context z-scored contexts —
+      matches SHAPE, discards absolute level (the original baseline; equals the
+      ``ctx_euclid`` retrieval neighbours).
+    - ``"raw"``: Euclidean between RAW contexts — shape + magnitude together,
+      but dominated by the high-variance early-growth shape.
+    - ``"level"``: ``|mean(ctx) - mean(query)|`` on raw contexts — matches the
+      absolute LEVEL alone, the signal the tail-mean metric actually scores
+      (the Phase-7 ρ ≈ +0.89 feature). Best ID and OOD in
+      ``analyze_level_matching.py``.
+
+    Ties are broken by pool order (stable sort).
 
     Args:
         pool: Example pool (FIXED pool, test ids excluded).
@@ -90,18 +101,28 @@ def make_knn_copy_forecast(
             means. If True, each neighbour's tail mean is z-scored with its
             own context scaler and mapped back through the QUERY context
             scaler (amplitude transfer instead of absolute copy).
+        distance: ``"zscore"`` (shape), ``"raw"`` (shape+magnitude), or
+            ``"level"`` (absolute level).
     """
+    if distance not in ("zscore", "raw", "level"):
+        raise ValueError(f"Unknown distance {distance!r}; expected zscore/raw/level")
     contexts_z: list[NDArray[np.float64]] = []
+    contexts_raw: list[NDArray[np.float64]] = []
     ctx_stats: list[tuple[float, float]] = []
+    ctx_means: list[float] = []
     tail_means: list[float] = []
     for ex in pool:
         ctx = ex.context_array.astype(np.float64)
         mean, std = float(ctx.mean()), float(ctx.std())
         std = std if std > 0 else 1.0
         contexts_z.append((ctx - mean) / std)
+        contexts_raw.append(ctx)
         ctx_stats.append((mean, std))
+        ctx_means.append(mean)
         tail_means.append(float(np.mean(ex.trace_array[-tail:])))
     pool_matrix = np.stack(contexts_z)
+    pool_raw = np.stack(contexts_raw)
+    pool_means = np.array(ctx_means)
 
     def forecast_fn(
         trace: NDArray[np.float32],
@@ -109,16 +130,20 @@ def make_knn_copy_forecast(
         config: FewShotConfig,
     ) -> NDArray[np.float32]:
         query = trace[: config.start_context_length].astype(np.float64)
-        if len(query) != pool_matrix.shape[1]:
+        if distance in ("zscore", "raw") and len(query) != pool_matrix.shape[1]:
             raise ValueError(
                 f"Query context length {len(query)} != pool context length "
                 f"{pool_matrix.shape[1]}"
             )
         q_mean, q_std = float(query.mean()), float(query.std())
         q_std = q_std if q_std > 0 else 1.0
-        query_z = (query - q_mean) / q_std
 
-        distances = np.linalg.norm(pool_matrix - query_z, axis=1)
+        if distance == "zscore":
+            distances = np.linalg.norm(pool_matrix - (query - q_mean) / q_std, axis=1)
+        elif distance == "raw":
+            distances = np.linalg.norm(pool_raw - query, axis=1)
+        else:  # level
+            distances = np.abs(pool_means - q_mean)
         neighbours = np.argsort(distances, kind="stable")[:k]
 
         if rescale:

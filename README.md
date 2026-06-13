@@ -89,6 +89,8 @@ The same pre-trained models, but provided with $k$ example traces (80-timestep c
 | kNN-copy (k=1, context distance)  | 44.24 ± 12.33 | 36.94 ± 10.91 |
 | kNN-copy (k=5)                    | 34.98 ± 11.11 | 39.54 ± 8.10  |
 
+> **Follow-up — match on *level*, not *shape*** ([docs/results/fewshot/level_matching.md](docs/results/fewshot/level_matching.md)): kNN-copy's distance z-scores the contexts, matching example *shape* and discarding the absolute level the metric scores. Matching on the context *level* alone (`|mean(ctx) − mean(query)|`) is best on both splits and far better OOD (kNN-copy 39.54 → **28.46** OOD; in the Bolt ICL pipeline the new `ctx_level` retrieval strategy reaches **21.91** OOD at k=5 — the project's lowest OOD). And no single constant can beat ~32 ID / ~47 OOD (the *spread* of the test levels): `pool_tail_mean`'s 38.65 is the best *blind* constant but biased low (it predicts 94 where the ID traces sit at ~115), so only per-query adaptation beats the floor. Both confirm the Phase-7 mechanism finding that the early-context mean is the strongest level predictor (ρ ≈ +0.89).
+
 <details>
 <summary><b>Full k-shot learning curves</b> (k = 0, 1, 3, 5, 10)</summary>
 

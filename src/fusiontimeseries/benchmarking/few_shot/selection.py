@@ -11,6 +11,14 @@ Replaces random example selection with informed retrieval. Strategies (the
   similarity — Euclidean on z-scored contexts, DTW on z-scored contexts, or
   absolute difference of linear-phase growth rates (physics-motivated:
   theory links growth rate to saturation amplitude).
+- ``ctx_level``: k nearest by ABSOLUTE context level — ``|mean(ctx_q) -
+  mean(ctx_i)|`` on RAW (un-z-scored) contexts. The other ``ctx_*`` strategies
+  z-score each context, which erases exactly the absolute level the tail-mean
+  metric scores; ``ctx_level`` matches on that level instead of shape. The
+  early-context mean is the strongest context-side predictor of the saturation
+  level (Phase-7 mechanism analysis: ρ ≈ +0.89 with the trace's own tail), so
+  this is the level-matching counterpart to the shape-matching retrievers
+  (model-free demonstration in ``analyze_level_matching.py``).
 - ``oracle_tail``: CHEATING DIAGNOSTIC — selects by the query's ground-truth
   tail mean. Never a method result; only a headroom estimate.
 - ``mmr_euclid``: max-marginal-relevance variant of ``ctx_euclid`` trading
@@ -64,6 +72,7 @@ STRATEGIES: tuple[str, ...] = (
     "ctx_euclid",
     "ctx_dtw",
     "ctx_growth",
+    "ctx_level",
     "oracle_tail",
     "mmr_euclid",
 )
@@ -72,6 +81,7 @@ CONTEXT_DISTANCES: dict[str, str] = {
     "ctx_euclid": "euclidean",
     "ctx_dtw": "dtw",
     "ctx_growth": "growth_rate",
+    "ctx_level": "level",
 }
 
 
@@ -192,6 +202,14 @@ def _rank_context_nn(
         dists = np.array(
             [abs(estimate_growth_rate(ex.context_array) - query_gamma) for ex in pool]
         )
+    elif distance == "level":
+        # Absolute context LEVEL: raw (NOT z-scored) context means. Matches the
+        # signal the tail-mean metric scores, which every z-scored distance
+        # above erases.
+        query_level = float(np.mean(query_context))
+        dists = np.array(
+            [abs(float(np.mean(ex.context_array)) - query_level) for ex in pool]
+        )
     else:
         raise ValueError(f"Unknown context distance: {distance}")
     return list(np.argsort(dists, kind="stable"))
@@ -267,8 +285,10 @@ def select_examples_context_nn(
         k: Number of examples.
         query_context: Raw 80-step query context.
         distance: ``"euclidean"`` (z-scored contexts, matches the kNN-copy
-            baseline's neighbours), ``"dtw"`` (z-scored contexts), or
-            ``"growth_rate"`` (|gamma_example - gamma_query| on raw contexts).
+            baseline's neighbours), ``"dtw"`` (z-scored contexts),
+            ``"growth_rate"`` (|gamma_example - gamma_query| on raw contexts),
+            or ``"level"`` (|mean(ctx) - mean(query)| on raw contexts — matches
+            absolute level, not shape).
         band: Sakoe-Chiba band for DTW (None = unconstrained).
 
     Returns:
@@ -518,6 +538,28 @@ if __name__ == "__main__":
         f"✓ estimate_growth_rate: synthetic gamma {gamma_true} -> {gamma_est:.4f}; "
         f"pool gamma min/median/max = {pool_gammas.min():.3f}/"
         f"{np.median(pool_gammas):.3f}/{pool_gammas.max():.3f}"
+    )
+
+    ########################################################
+    # ctx_level — match by absolute context level, not shape
+    ########################################################
+    query_context = provider.get_id("iteration_8_ifft").numpy()[:80]
+    q_level = float(np.mean(query_context))
+    pool_levels = np.array([float(np.mean(ex.context_array)) for ex in pool])
+    expected_nn = np.argsort(np.abs(pool_levels - q_level), kind="stable")[:5]
+    level_picks = select_examples_context_nn(pool, 5, query_context, distance="level")
+    assert [ex.trace_id for ex in reversed(level_picks)] == [
+        pool[i].trace_id for i in expected_nn
+    ], "ctx_level must rank by |context mean - query mean|"
+    # ctx_level and ctx_euclid must generally pick DIFFERENT neighbours (level
+    # vs shape are distinct signals) — else the strategy adds nothing.
+    euclid_picks = select_examples_context_nn(pool, 5, query_context, distance="euclidean")
+    assert {e.trace_id for e in level_picks} != {e.trace_id for e in euclid_picks}, (
+        "ctx_level and ctx_euclid should differ (level ≠ shape)"
+    )
+    print(
+        f"✓ ctx_level: ranks by |ctx mean − query mean| (query level {q_level:.1f}); "
+        f"picks differ from ctx_euclid (level vs shape)"
     )
 
     ########################################################
