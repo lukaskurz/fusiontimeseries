@@ -128,6 +128,49 @@ forecasts gives ID 17.51 / **OOD 40.64** (vs 15.72 / 6.03 on the notebook
 metric) — the dramatic chronos2 finetuning OOD numbers are largely this
 artifact. See the [evaluation reconciliation](../results/fewshot/evaluation_reconciliation.md).
 
+## In-context finetuning (Phase 9)
+
+Phase 6 found the finetuned model's in-context ability is *inherited* from base
+pretraining — `train_bilinear.py` finetunes on single subsampled traces, never
+on demonstrations. **In-context finetuning (ICF)** trains the same BilinearLoRA
+recipe ON multi-example ICL concatenations
+([`Chronos2ICLDataset`](../../src/fusiontimeseries/finetuning/chronos2/icl_dataset.py),
+window 2048, $k\in\{1,3,5\}$ per sample, raw concatenation = level-clean,
+query-only conditioning) so the model can *learn* to use demonstrations. Two
+checkpoints isolate the mechanism:
+[`train_bilinear_icl.py`](../../src/fusiontimeseries/finetuning/chronos2/train_bilinear_icl.py)
+trains a **level** model (demos retrieved by context level, train≡test
+`ctx_level`) and a **random** control (demos sampled at random). Full results:
+[`icl_finetuning_table.md`](../results/fewshot/icl_finetuning_table.md) (+
+`icl_finetuning_kcurve.png`).
+
+**ICF makes the model demonstration-dependent, and the model genuinely learns
+to USE level-matched demos — but only the oracle reveals it.** Both ICF
+checkpoints collapse at $k=0$ (level 59.76 / random 46.52 ID vs the v6
+single-trace model's 22.20) and gain massively from ICL ($-29$ ID,
+$p\le0.012$): trained always-with-demos, they are demo-driven where v6 was not.
+The **random control is the decisive probe**: given perfectly level-matched
+demonstrations (the cheating oracle), ICF-level dominates ICF-random — **OOD
+7.49 vs 61.82** ($\Delta-54.3$, $p_\text{boot}=0.000$), ID 22.20 vs 32.80
+($p=0.042$) — and the random model gains essentially nothing from oracle demos
+(it learned to *ignore* demo level, so it cannot exploit level-matched ones).
+This is the cleanest separation in the study.
+
+**But ICF does not beat the inherited ICL ability under realistic retrieval.**
+With `ctx_level` retrieval ICF-level $\approx$ the v6 ft model (ID $-0.27$ n.s.,
+OOD $+1.9$ n.s.) and the project's best legitimate ID (15.63, v6 ft `mmr_euclid`
+@ the 512 window) is unbeaten. ICF moved the *ceiling* (level-oracle OOD 7.49
+beats v6's oracle 10.89, $p=0.000$), not the realized number — the same
+80-step-context information limit as Phase 7. A sharp **ID/OOD personality
+split** appears under realistic retrieval: ICF-random is ID-optimised
+(`ctx_level` $k{=}10$ 16.35 ID but catastrophic 57 OOD — a level-blind
+amplitude trick) while ICF-level is balanced (~30/30) because it relies on level
+matching, which transfers to OOD. The *training*-demo distribution sets which
+axis the model optimises, mirroring the eval-time shape-for-ID / level-for-OOD
+split one layer up. **Bottom line: the bottleneck was never in-context capacity
+(pretrained or ICF-trained) — it is retrieval; closing it needs side
+information, not more in-context training.**
+
 ## Relationship to prior work
 
 The synergy claim is **RAF**
@@ -146,12 +189,16 @@ invariant. The collapse to a level (no dispersion, over-smoothing) is the
 
 - Implementation:
   [`benchmarking/few_shot/finetuned.py`](../../src/fusiontimeseries/benchmarking/few_shot/finetuned.py),
-  `run_finetuned_grid.py`, `analyze_finetuned.py` (Phase 6);
-  `run_mechanism_dump.py`, `analyze_mechanism.py` (Phase 7);
-  training `finetuning/chronos2/train_bilinear.py`.
+  `run_finetuned_grid.py`, `analyze_finetuned.py` (Phase 6, + Part A
+  level-aware retrieval cells); `run_mechanism_dump.py`, `analyze_mechanism.py`
+  (Phase 7); `run_icl_finetuned.py`, `analyze_icl_finetuned.py` (Phase 9 ICF);
+  training `finetuning/chronos2/train_bilinear.py` (single-trace) and
+  `train_bilinear_icl.py` + `icl_dataset.py` (ICF).
 - Results:
   [`finetuned_icl_table.md`](../results/fewshot/finetuned_icl_table.md),
-  [`mechanism_table.md`](../results/fewshot/mechanism_table.md) + figures.
+  [`mechanism_table.md`](../results/fewshot/mechanism_table.md),
+  [`icl_finetuning_table.md`](../results/fewshot/icl_finetuning_table.md) +
+  figures.
 - Self-tests: `python -m fusiontimeseries.benchmarking.few_shot.finetuned`;
   `... analyze_mechanism --self-test`.
 - Method context for the conditioning: [`BilinearLoRA.md`](BilinearLoRA.md).

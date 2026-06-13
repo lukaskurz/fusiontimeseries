@@ -23,9 +23,11 @@ its generated result table under [`../results/fewshot/`](../results/fewshot/).
 - [decoding_and_ensembling.md](decoding_and_ensembling.md) — Phase 5: conditional
   mean vs median, decile-mean bias, per-model decision, seed/cross-model
   ensembling.
-- [icl_finetuning_synergy.md](icl_finetuning_synergy.md) — Phases 6–7: the 2×2
-  synergy, context composition (win512), and the level-calibration mechanism /
-  oracle-gap information limit.
+- [icl_finetuning_synergy.md](icl_finetuning_synergy.md) — Phases 6–7, Part A,
+  and Phase 9: the 2×2 synergy, context composition (win512), the
+  level-calibration mechanism / oracle-gap information limit, level-aware
+  retrieval on the finetuned model, and in-context finetuning (ICF — training
+  on demonstrations, with the level-vs-random control).
 
 Reconciliation of the two halves' evaluation protocols (Phase 8):
 [`../results/fewshot/evaluation_reconciliation.md`](../results/fewshot/evaluation_reconciliation.md).

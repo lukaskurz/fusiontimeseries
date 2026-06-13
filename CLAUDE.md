@@ -149,6 +149,16 @@ src/fusiontimeseries/
 │       │                             #   ladder + phase-invariance ->
 │       │                             #   evaluation_reconciliation.md +
 │       │                             #   reconciliation_ladder.png; --self-test
+│       ├── run_icl_finetuned.py       # Phase-9 ICF eval: load each ICF
+│       │                             #   checkpoint @ its 2048 window +
+│       │                             #   make_finetuned_forecast_fn(shared) ->
+│       │                             #   few_shot_v9_icl/ (distinct icf-level/
+│       │                             #   icf-random slugs, sha256 per JSON)
+│       ├── analyze_icl_finetuned.py   # Phase-9 analysis: three-way ICF-level
+│       │                             #   vs ICF-random vs v6-ft + paired CIs +
+│       │                             #   k-curve + ladder rung ->
+│       │                             #   icl_finetuning_table.md +
+│       │                             #   icl_finetuning_kcurve.png; --self-test
 │       └── *_fewshot_benchmark.ipynb
 ├── zeroshot/                  # Upstream's zero-shot notebooks (v1.0.0)
 ├── finetuning/
@@ -157,6 +167,11 @@ src/fusiontimeseries/
 │   │                          #   BilinearLoRA recipe, MPS adaptations,
 │   │                          #   ensure_flat_flux_data — rebuilds the flat-list
 │   │                          #   flux_data schema lib/dataset.py expects)
+│   │                          #   + OUR icl_dataset.py (Phase-9 Chronos2ICLDataset:
+│   │                          #   multi-example ICL concatenations, level/random
+│   │                          #   retrieval, query-only conditioning) +
+│   │                          #   train_bilinear_icl.py (ICF training entry,
+│   │                          #   window 2048 / batch 32, reuses train_bilinear)
 │   ├── timesfm/               # TimesFM finetuning notebooks + dataset.py, trainer.py
 │   ├── evaluation/            # loss_curve.py
 │   └── preprocessing/         # OUR kept module: utils.py (get_valid_flux_traces)
@@ -404,6 +419,28 @@ annotated with the metric note. Six per-phase method docs +
 `few_shot_icl.md` narrative + `README.md` index now live in `docs/methods/`.
 `docs/results/` has plots; `docs/methods/`
 documents the Bilinear/OSS/RSS LoRA variants and the few-shot ICL phases.
+Phase 9 in-context finetuning (`results/few_shot_v9_icl/` via
+`run_icl_finetuned.py` + `analyze_icl_finetuned.py`; analysis
+`docs/results/fewshot/icl_finetuning_table.md` + `icl_finetuning_kcurve.png`):
+trained the BilinearLoRA ON multi-example ICL concatenations
+(`finetuning/chronos2/icl_dataset.py` + `train_bilinear_icl.py`, window 2048,
+k∈{1,3,5}, query-only conditioning) — two checkpoints, a `level` model (demos
+by context level, train≡test) and a `random` control. ICF makes the model
+demonstration-DEPENDENT (k=0 collapses: level 59.76 / random 46.52 ID vs v6 ft
+22.20; ICL then gains −29 ID, p≤0.012). The random control proves the usage is
+LEVEL-SPECIFIC — at the oracle, ICF-level vs ICF-random is OOD 7.49 vs 61.82
+(p_boot 0.000), ID 22.20 vs 32.80 (p 0.042); the random model gains ~nothing
+from oracle demos (learned to ignore demo level) and ICF-level beats the v6
+oracle ceiling OOD (7.49 vs 10.89, p 0.000) → it moved the CEILING. But
+realistic ctx_level retrieval can't deliver oracle-quality matches, so
+ICF-level ≈ v6 inherited ICL (ctx_level k10 ID −0.27 / OOD +1.9 n.s.; project
+best legit ID 15.63 @v6-win512 unbeaten); ICF-random's strong 16.35 ID is a
+level-blind amplitude trick (catastrophic 57 OOD). Bottleneck is RETRIEVAL, not
+in-context capacity — same Phase-7 wall (n=6/5; OOD oracle separation is the
+robust headline). PART A (level-aware retrieval on the v6 finetuned grid:
+ctx_level/mmr_level added) is folded into `finetuned_icl_table.md` +
+`level_matching.md` §4 (ctx_level improves ft OOD significantly; mmr_euclid
+wins ID; mmr_level dominates neither).
 
 ---
 
@@ -441,5 +478,13 @@ analyze_reconciliation.py → few_shot_v8_reconciliation/ +
 evaluation_reconciliation.md + reconciliation_ladder.png; tail mean
 phase-invariant, robust rungs replicate, best-config ICL phase-sensitive),
 six per-phase method docs + few_shot_icl.md narrative + docs/methods index,
-README References rebuilt + reconciliation/related-work/method-docs pointers)
+README References rebuilt + reconciliation/related-work/method-docs pointers;
+Part A: level-aware retrieval on the v6 finetuned grid — mmr_level strategy +
+ctx_level/mmr_level cells, ctx_level improves ft OOD significantly
+(34.10 → 27.42 / 24.58 @win512);
+Phase 9: in-context finetuning — icl_dataset.py Chronos2ICLDataset +
+train_bilinear_icl.py (level + random checkpoints) + run_icl_finetuned.py +
+analyze_icl_finetuned.py → few_shot_v9_icl/ + icl_finetuning_table.md;
+ICF learns to USE level-matched demos (oracle control definitive) but
+retrieval, not in-context capacity, stays the bottleneck)
 **Upstream Maintainer**: Severin Bergsmann (sbergsmann)

@@ -457,6 +457,62 @@ re-runnable).
 
 ---
 
+## Part A — Level-aware retrieval on the finetuned model ✅ (2026-06-13)
+
+**Goal**: Phase 6 used only the shape-matching `mmr_euclid`; the
+`level_matching` follow-up later showed level-matching beats shape-matching
+dramatically OOD. Does that stack on the *finetuned* model?
+
+**Tasks**:
+- [x] New `selection.py` strategy `mmr_level` (`select_examples_level_mmr`):
+      level relevance + shape diversity, level gap normalized by pool-level std
+      so the two similarities are comparable (else it collapses to `ctx_level`);
+      query-robust self-test.
+- [x] Append `ctx_level`/`mmr_level` k5/k10 to `run_finetuned_grid.ICL_CONFIGS`
+      + `WINDOW_CONFIGS` (~24 new cells, skip-if-exists left existing v6
+      untouched); `analyze_finetuned` regenerated automatically.
+
+**Findings**: the level-vs-shape split holds on the ft model — `ctx_level`
+SIGNIFICANTLY improves ft OOD (34.10 → 27.42 k5 mean, p_boot 0.000; → 24.58
+@win512 = best legit ft OOD, overturning "no legit ICL improves OOD"), while
+`mmr_euclid` (shape) still wins ID (18.62) but leaves OOD ≥ ft-k0, and
+`mmr_level` dominates neither. best_legit + ladder rungs unchanged. Docs:
+`level_matching.md` §4, `icl_finetuning_synergy.md`. ✅
+
+---
+
+## Phase 9 — In-context finetuning (ICF) ✅ (2026-06-13)
+
+**Goal**: Phase 6's window-clamp analysis showed the finetuned model's ICL
+ability is INHERITED from base pretraining (it was finetuned on single traces).
+Does training the BilinearLoRA ON multi-example ICL concatenations make it
+*use* demonstrations better than the inherited ability?
+
+**Tasks**:
+- [x] `finetuning/chronos2/icl_dataset.py` — `Chronos2ICLDataset`: raw
+      `[demo_1..demo_k, query_ctx]` concatenations (instance-norm-equivalent to
+      shared scaling at eval), demos from OTHER traces, `level`/`random`
+      retrieval, k∈{1,3,5} per sample, query-only conditioning, deterministic
+      val; CPU self-test.
+- [x] `finetuning/chronos2/train_bilinear_icl.py` — ICF training entry reusing
+      the `train_bilinear` recipe verbatim, window 2048 / batch 32; two
+      checkpoints (`level`, `random` control), one process each.
+- [x] `benchmarking/few_shot/run_icl_finetuned.py` → `results/few_shot_v9_icl/`
+      (36 cells, sha256 per JSON) + `analyze_icl_finetuned.py` (`--self-test`)
+      → `docs/results/fewshot/icl_finetuning_table.md` + `_kcurve.png`.
+
+**Findings**: ICF makes the model demonstration-DEPENDENT (k=0 collapses,
+massive ICL gain). The RANDOM control proves the usage is LEVEL-SPECIFIC — at
+the oracle, ICF-level vs ICF-random is OOD 7.49 vs 61.82 (p_boot 0.000); the
+random model can't exploit level-matched demos. But realistic retrieval can't
+deliver oracle-quality matches, so ICF ≈ v6 inherited ICL (project best legit
+ID 15.63 unbeaten) — it moved the *ceiling*, not the realized number.
+Bottleneck is retrieval, not in-context capacity. ✅
+
+**Deliverable**: ICF code + checkpoints' eval + table/figure + integration. ✅
+
+---
+
 ## Suggested session order & parallelization
 
 Phases form parallel bands separated by merge points; 7 and 8 are
