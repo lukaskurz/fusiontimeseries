@@ -22,7 +22,11 @@ Replaces random example selection with informed retrieval. Strategies (the
 - ``oracle_tail``: CHEATING DIAGNOSTIC — selects by the query's ground-truth
   tail mean. Never a method result; only a headroom estimate.
 - ``mmr_euclid``: max-marginal-relevance variant of ``ctx_euclid`` trading
-  similarity against diversity among the selected examples.
+  shape similarity against shape diversity among the selected examples.
+- ``mmr_level``: level-aware MMR — relevance is context-LEVEL proximity (like
+  ``ctx_level``) while redundancy is z-scored SHAPE similarity. Picks examples
+  close in absolute level but diverse in shape: the principled "make retrieval
+  level-aware while keeping demonstration variety" hybrid.
 
 Ordering convention: every selector returns the MOST SIMILAR example LAST,
 i.e. adjacent to the query context in the flat ICL concatenation (recency
@@ -64,6 +68,7 @@ __all__ = [
     "select_examples_context_nn",
     "select_examples_oracle",
     "select_examples_mmr",
+    "select_examples_level_mmr",
 ]
 
 STRATEGIES: tuple[str, ...] = (
@@ -75,6 +80,7 @@ STRATEGIES: tuple[str, ...] = (
     "ctx_level",
     "oracle_tail",
     "mmr_euclid",
+    "mmr_level",
 )
 
 CONTEXT_DISTANCES: dict[str, str] = {
@@ -373,6 +379,80 @@ def select_examples_mmr(
     return [pool[i] for i in reversed(selected)]
 
 
+def select_examples_level_mmr(
+    pool: list[FewShotExample],
+    k: int,
+    query_context: NDArray,
+    lambda_: float = 0.5,
+) -> list[FewShotExample]:
+    """Level-aware MMR: level relevance traded against shape diversity.
+
+    The level-matching counterpart of ``select_examples_mmr``. Relevance is
+    absolute-level proximity (the ``ctx_level`` signal — the raw context mean,
+    the strongest context-side predictor of the saturation level, Phase-7
+    ρ ≈ +0.89), while redundancy is SHAPE similarity (``1 / (1 + ||z(ctx_i) -
+    z(ctx_j)||)`` on z-scored contexts, the ``ctx_euclid`` distance) among the
+    already-selected. Each step picks ``argmax lambda_ * sim_level(query, e) -
+    (1 - lambda_) * max(sim_shape(e, s) for s in selected)``: examples close in
+    LEVEL but diverse in SHAPE. ``ctx_level`` matches level but ignores shape,
+    so its picks can be near-duplicate trajectories; this keeps the
+    demonstration set varied without sacrificing the level signal the tail-mean
+    metric scores.
+
+    The level relevance is ``sim_level = 1 / (1 + |Δlevel| / s)`` where the raw
+    level gap ``|Δlevel|`` is divided by the pool-level spread ``s = std(pool
+    context means)``. Without this normalization the two similarities live on
+    incomparable scales — raw flux-unit level gaps vs unitless z-scored shape
+    distances — and the level term swamps the shape term at ``lambda_ = 0.5``,
+    collapsing the strategy back to plain ``ctx_level``. Standardizing the
+    level gap to pool-spread units makes the relevance dynamic range comparable
+    to the shape redundancy, so ``lambda_`` genuinely trades the two off
+    (empirically the picks then differ from ``ctx_level`` and are more
+    shape-diverse for 9/11 benchmark queries). ``s`` depends only on the pool,
+    so the selection stays deterministic per ``(pool, query)``.
+
+    The first pick is always the plain ``ctx_level`` nearest neighbour
+    (redundancy 0); the returned list is reversed so it sits LAST, adjacent to
+    the query.
+
+    Args:
+        pool: Example pool (FIXED pool, test ids excluded).
+        k: Number of examples.
+        query_context: Raw 80-step query context.
+        lambda_: Level-relevance weight (1.0 reduces to plain ctx_level top-k).
+
+    Returns:
+        k examples, most level-relevant pick LAST.
+    """
+    if k > len(pool):
+        raise ValueError(f"Cannot select {k} examples from pool of size {len(pool)}")
+    query_level = float(np.mean(query_context))
+    pool_levels = np.array([float(np.mean(ex.context_array)) for ex in pool])
+    level_scale = float(np.std(pool_levels))
+    level_scale = level_scale if level_scale > 0 else 1.0
+    sim_query = 1.0 / (1.0 + np.abs(pool_levels - query_level) / level_scale)
+    pool_matrix = np.stack([_zscore(ex.context_array) for ex in pool])
+
+    selected: list[int] = []
+    remaining = list(range(len(pool)))
+    while len(selected) < k:
+        best_index, best_score = -1, -np.inf
+        for i in remaining:
+            if selected:
+                sims = 1.0 / (
+                    1.0 + np.linalg.norm(pool_matrix[selected] - pool_matrix[i], axis=1)
+                )
+                redundancy = float(np.max(sims))
+            else:
+                redundancy = 0.0
+            score = lambda_ * float(sim_query[i]) - (1.0 - lambda_) * redundancy
+            if score > best_score:
+                best_index, best_score = i, score
+        selected.append(best_index)
+        remaining.remove(best_index)
+    return [pool[i] for i in reversed(selected)]
+
+
 ########################################################
 # SelectFn registry
 ########################################################
@@ -420,6 +500,19 @@ def make_select_fn(strategy: str) -> SelectFn:
             return select_examples_mmr(pool, k, query_context)
 
         return select_mmr
+
+    if strategy == "mmr_level":
+
+        def select_mmr_level(
+            pool: list[FewShotExample],
+            k: int,
+            seed: int,
+            query_context: NDArray[np.float32],
+            query_key: str,
+        ) -> list[FewShotExample]:
+            return select_examples_level_mmr(pool, k, query_context)
+
+        return select_mmr_level
 
     ranking_cache: dict[tuple[int, str], list[int]] = {}
 
@@ -600,6 +693,50 @@ if __name__ == "__main__":
     print(
         f"✓ mmr_euclid: nearest-neighbour anchor kept; min pairwise dist "
         f"{mmr_diversity:.2f} > top-k's {topk_diversity:.2f}"
+    )
+
+    ########################################################
+    # MMR-level — level relevance + shape diversity
+    ########################################################
+    def mean_level_gap(examples: list[FewShotExample], q_lvl: float) -> float:
+        return float(
+            np.mean([abs(float(np.mean(e.context_array)) - q_lvl) for e in examples])
+        )
+
+    # Properties hold per query; check across all 11 benchmark queries (one
+    # query — e.g. iteration_8_ifft — can tie ctx_level when its level-nearest
+    # are already shape-diverse, so a single-query > assert is brittle).
+    n_anchor = n_div_ge = n_div_gt = n_level = 0
+    for split_key, getter in (
+        (IN_DISTRIBUTION_ITERATIONS, provider.get_id),
+        (OUT_OF_DISTRIBUTION_ITERATIONS, provider.get_ood),
+    ):
+        for key in split_key:
+            qc = getter(key).numpy()[:80]
+            q_lvl = float(np.mean(qc))
+            level_mmr = select_examples_level_mmr(pool, 5, qc, lambda_=0.5)
+            level_nn = select_examples_context_nn(pool, 1, qc, distance="level")[0]
+            level_topk = select_examples_context_nn(pool, 5, qc, distance="level")
+            mmr_eu = select_examples_mmr(pool, 5, qc)
+            n_anchor += level_mmr[-1].trace_id == level_nn.trace_id
+            n_div_ge += min_pairwise_dist(level_mmr) >= min_pairwise_dist(level_topk) - 1e-9
+            n_div_gt += min_pairwise_dist(level_mmr) > min_pairwise_dist(level_topk) + 1e-9
+            n_level += mean_level_gap(level_mmr, q_lvl) < mean_level_gap(mmr_eu, q_lvl)
+    # Anchor (most-relevant pick LAST == ctx_level NN) and "never LESS
+    # shape-diverse than ctx_level top-k" are exact; strictly-more-diverse and
+    # closer-level-than-mmr_euclid hold for the large majority.
+    assert n_anchor == 11, f"MMR-level anchor != ctx_level NN for {11 - n_anchor} queries"
+    assert n_div_ge == 11, (
+        f"MMR-level LESS shape-diverse than ctx_level top-k for {11 - n_div_ge} queries"
+    )
+    assert n_div_gt >= 8, f"MMR-level only strictly more diverse for {n_div_gt}/11"
+    assert n_level >= 10, (
+        f"MMR-level only closer-in-level than mmr_euclid for {n_level}/11"
+    )
+    print(
+        f"✓ mmr_level: ctx_level-NN anchor {n_anchor}/11; shape-diversity ≥ "
+        f"ctx_level top-k {n_div_ge}/11 (strictly > {n_div_gt}/11); closer in "
+        f"level than mmr_euclid {n_level}/11"
     )
 
     ########################################################

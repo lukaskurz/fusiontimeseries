@@ -44,9 +44,26 @@ kNN-copy (k=5) retrieves the nearest pool traces and copies the mean of their ta
 
 The pipeline numbers carry the usual n=6/5 caveat, but the level-vs-shape direction is consistent with the model-free comparison above.
 
+## 4. On the finetuned model (Part A)
+
+The level-vs-shape split also holds on the operating-param-conditioned BilinearLoRA finetuned Chronos-2 (the Phase-6 grid, which originally had only shape-matching `mmr_euclid`). Re-running with `ctx_level` and a level-aware MMR hybrid `mmr_level` (level relevance + shape diversity, `selection.py`); mean decoding, shared scaling, `results/few_shot_v6_finetuned/`:
+
+| strategy | full k=5 (ID / OOD) | full k=10 (ID / OOD) | win512 (ID / OOD) |
+|---|---|---|---|
+| ft k=0 (anchor) | 22.20 / 34.10 | — | — |
+| mmr_euclid (shape) | **18.62** / 36.00 | 20.80 / 37.22 | **15.63** / 32.34 |
+| ctx_level (level) | 33.54 / **27.42** | 32.32 / 28.37 | 29.29 / **24.58** |
+| mmr_level (hybrid) | 34.64 / 29.57 | 33.77 / 30.29 | 30.18 / 29.22 |
+
+- **`ctx_level` significantly improves ft OOD**: k=5 mean 27.42 vs ft k=0 34.10, Δ−6.68, 95% CI [−13.97, −3.35], p_boot=0.000 (k=10: 28.37, p_boot=0.000); under the 512 clamp it reaches **24.58 OOD — the best legitimate finetuned OOD**. This overturns the Phase-6 reading that "no legit ICL config improves ft OOD" (true only for the shape retrievers then tested).
+- **`mmr_euclid` (shape) still wins ID** (18.62, → 15.63 under the clamp) but leaves OOD *at or above* the ft k=0 anchor.
+- **`mmr_level` dominates neither axis**: its shape-diversity penalty re-admits wrong-level demonstration mass, costing the OOD that pure `ctx_level` keeps.
+
+So the model-free "use magnitude, drop shape" verdict carries onto the finetuned model: **shape retrieval for ID, level retrieval for OOD; no single 80-step-context retriever wins both.** Full table, paired bootstrap CIs, and the regenerated synergy/ladder figures: [`finetuned_icl_table.md`](finetuned_icl_table.md).
+
 ## Where this is wired in
 
 - `baselines.make_knn_copy_forecast(..., distance="zscore"|"raw"|"level")` — the distance knob (default `zscore` preserves the original baseline).
-- `selection.py` `ctx_level` strategy (in `STRATEGIES`) — level-matching retrieval usable by any ICL grid.
+- `selection.py` `ctx_level` strategy (in `STRATEGIES`) — level-matching retrieval usable by any ICL grid; `mmr_level` (`select_examples_level_mmr`) — the level-relevance + shape-diversity MMR hybrid used in Part A.
 - Regenerate: `python -m fusiontimeseries.benchmarking.few_shot.analyze_level_matching`.
 - Mechanism context: [`mechanism_table.md`](mechanism_table.md) (the ρ ≈ +0.89 feature) and [`few_shot_icl.md`](../../methods/few_shot_icl.md).

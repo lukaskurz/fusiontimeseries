@@ -781,14 +781,31 @@ distance scores ≈ random (op_knn k5 39.55 vs random k10 40.02 ID mean;
 mmr_euclid k5: 18.62) — the operating parameters do not identify
 level-matched examples either; Phase-2's base-model "op_knn ≈ ctx" verdict
 generalizes (mechanism analysis: `mechanism_table.md`).
-(4) **Bad examples destroy the finetuned advantage**: with random k=10
+(3b) **Level-aware retrieval (Part A, 2026-06-13) is the OOD lever ICL was
+missing on the ft model.** The level-matching `ctx_level` retriever
+(`|mean(ctx)−mean(query)|`, the signal the tail metric scores) and the
+`mmr_level` hybrid (level relevance + shape diversity) were added after
+Phase 6, which only had shape-matching `mmr_euclid`. On the ft model the
+level-vs-shape split is clean and mirrors the model-free `level_matching`
+follow-up: `ctx_level` **significantly improves ft OOD** (k=5 mean 27.42 vs
+ft k0 34.10, Δ−6.68, CI [−13.97, −3.35], p_boot 0.000; k=10 28.37, p 0.000)
+and reaches **24.58 OOD under the 512 clamp** — the best legitimate ft OOD,
+overturning the Phase-6 "no legit ICL config improves OOD" reading below —
+while `mmr_euclid` (shape) leaves OOD AT/ABOVE ft k0 (36.00) yet still wins
+ID (18.62 vs ctx_level's 32.32). `mmr_level` sits between on both axes
+(OOD 29.57, ID 34.64 at k5 mean), dominating neither — the shape-diversity
+penalty re-admits wrong-level mass that hurts OOD. The takeaway: **shape
+retrieval for ID, level retrieval for OOD; no single retriever wins both**,
+exactly the model-free `level_matching` verdict carried onto the finetuned
+model. (4) **Bad examples destroy the finetuned advantage**: with random k=10
 examples ft ≈ base exactly (40.02 vs 39.99 ID; +0.03, n.s. even at
 trace_seed resolution) — random examples drag the ft model from 22.20 UP to
 ~39, the same level they pull the base DOWN to from 89.51. Once the model
-is finetuned, example quality is no longer optional. (5) **OOD is
-finetuning's story alone**: 67.94 → 34.10 at k=0; no legit ICL config
-improves it further (mmr +1.9..+3.1); only the window clamp mildly helps
-(32.34). (6) **The 512-window clamp helps legit retrieval but HURTS the
+is finetuned, example quality is no longer optional. (5) **OOD is mostly
+finetuning's story** (67.94 → 34.10 at k=0); shape retrieval does not
+improve it (mmr +1.9..+3.1, only the window clamp mildly helps to 32.34),
+but **level-aware retrieval does** — see (3b): `ctx_level` mean reaches
+27.42 (full) / 24.58 (win512), significantly below ft k0. (6) **The 512-window clamp helps legit retrieval but HURTS the
 oracle — the mechanism is context COMPOSITION, not window-length
 mismatch.** The clamp beats the full window in all 8 mmr cells (−3.0 to
 −10.4) yet destroys the oracle ceiling (9.39 → 19.57 ID mean): mmr/ctx

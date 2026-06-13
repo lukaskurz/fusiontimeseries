@@ -37,6 +37,10 @@ Cells are `ID / OOD` tail RMSE (±std over seeds where multi-seed).
 | oracle_tail k=10 (cheats) | 21.61 / 21.83 | 9.39 / 10.89 | -12.23 | -10.95 |
 | op_knn k=5 | 45.07 / 32.43 | 39.55 / 32.31 | -5.51 | -0.12 |
 | op_knn k=10 | 44.98 / 38.25 | 39.62 / 31.71 | -5.36 | -6.54 |
+| ctx_level k=5 | 40.56 / 31.31 | 33.54 / 27.42 | -7.02 | -3.89 |
+| ctx_level k=10 | 36.41 / 31.24 | 32.32 / 28.37 | -4.09 | -2.87 |
+| mmr_level k=5 | 42.47 / 27.18 | 34.64 / 29.57 | -7.83 | +2.38 |
+| mmr_level k=10 | 39.79 / 28.33 | 33.77 / 30.29 | -6.03 | +1.96 |
 | random k=10 | 39.18±8.23 / 46.07±6.35 | 38.87±9.79 / 46.23±8.15 | -0.31 | +0.17 |
 
 ### Decoding: median
@@ -51,6 +55,10 @@ Cells are `ID / OOD` tail RMSE (±std over seeds where multi-seed).
 | oracle_tail k=10 (cheats) | 23.31 / 23.99 | 16.72 / 15.25 | -6.59 | -8.74 |
 | op_knn k=5 | 47.35 / 35.82 | 44.51 / 35.94 | -2.85 | +0.11 |
 | op_knn k=10 | 47.67 / 38.89 | 44.70 / 34.89 | -2.97 | -4.00 |
+| ctx_level k=5 | 43.14 / 30.27 | 39.40 / 29.85 | -3.74 | -0.42 |
+| ctx_level k=10 | 39.96 / 32.21 | 38.81 / 30.20 | -1.15 | -2.01 |
+| mmr_level k=5 | 44.81 / 28.58 | 40.31 / 32.59 | -4.50 | +4.00 |
+| mmr_level k=10 | 44.10 / 31.52 | 40.18 / 33.24 | -3.92 | +1.72 |
 | random k=10 | 44.42±8.36 / 49.18±6.63 | 44.58±11.04 / 49.82±9.91 | +0.16 | +0.64 |
 
 ## Paired comparisons
@@ -103,6 +111,30 @@ Cells are `ID / OOD` tail RMSE (±std over seeds where multi-seed).
 | [mean] op_knn k=10: ft+ICL vs ft k0 | OOD | 31.71 | 34.10 | -2.39 | [-15.68, 3.67] | 0.523 | 0.812 |
 | [mean] op_knn k=10: base+ICL vs base k0 | ID | 44.98 | 89.51 | -44.53 | [-62.64, -31.06] | 0.000 | 0.031 |
 | [mean] op_knn k=10: base+ICL vs base k0 | OOD | 38.25 | 67.94 | -29.69 | [-49.08, -0.87] | 0.047 | 0.312 |
+| [mean] ctx_level k=5: ft vs base | ID | 33.54 | 40.56 | -7.02 | [-12.68, -3.32] | 0.000 | 0.031 |
+| [mean] ctx_level k=5: ft vs base | OOD | 27.42 | 31.31 | -3.89 | [-8.25, 3.41] | 0.167 | 0.312 |
+| [mean] ctx_level k=5: ft+ICL vs ft k0 | ID | 33.54 | 22.20 | +11.34 | [0.76, 19.90] | 0.033 | 0.156 |
+| [mean] ctx_level k=5: ft+ICL vs ft k0 | OOD | 27.42 | 34.10 | -6.68 | [-13.97, -3.35] | 0.000 | 0.062 |
+| [mean] ctx_level k=5: base+ICL vs base k0 | ID | 40.56 | 89.51 | -48.95 | [-59.92, -34.99] | 0.000 | 0.031 |
+| [mean] ctx_level k=5: base+ICL vs base k0 | OOD | 31.31 | 67.94 | -36.63 | [-55.52, -7.51] | 0.019 | 0.312 |
+| [mean] ctx_level k=10: ft vs base | ID | 32.32 | 36.41 | -4.09 | [-6.66, -1.08] | 0.003 | 0.094 |
+| [mean] ctx_level k=10: ft vs base | OOD | 28.37 | 31.24 | -2.87 | [-7.46, -0.42] | 0.019 | 0.312 |
+| [mean] ctx_level k=10: ft+ICL vs ft k0 | ID | 32.32 | 22.20 | +10.11 | [1.53, 17.50] | 0.004 | 0.094 |
+| [mean] ctx_level k=10: ft+ICL vs ft k0 | OOD | 28.37 | 34.10 | -5.73 | [-14.02, -1.97] | 0.000 | 0.062 |
+| [mean] ctx_level k=10: base+ICL vs base k0 | ID | 36.41 | 89.51 | -53.10 | [-66.77, -39.03] | 0.000 | 0.031 |
+| [mean] ctx_level k=10: base+ICL vs base k0 | OOD | 31.24 | 67.94 | -36.70 | [-53.29, -4.56] | 0.019 | 0.312 |
+| [mean] mmr_level k=5: ft vs base | ID | 34.64 | 42.47 | -7.83 | [-11.14, -4.48] | 0.000 | 0.031 |
+| [mean] mmr_level k=5: ft vs base | OOD | 29.57 | 27.18 | +2.38 | [-6.85, 5.71] | 0.507 | 1.000 |
+| [mean] mmr_level k=5: ft+ICL vs ft k0 | ID | 34.64 | 22.20 | +12.44 | [4.29, 20.22] | 0.000 | 0.031 |
+| [mean] mmr_level k=5: ft+ICL vs ft k0 | OOD | 29.57 | 34.10 | -4.54 | [-15.05, 0.97] | 0.111 | 0.188 |
+| [mean] mmr_level k=5: base+ICL vs base k0 | ID | 42.47 | 89.51 | -47.04 | [-57.65, -35.58] | 0.000 | 0.031 |
+| [mean] mmr_level k=5: base+ICL vs base k0 | OOD | 27.18 | 67.94 | -40.75 | [-58.13, -8.91] | 0.019 | 0.312 |
+| [mean] mmr_level k=10: ft vs base | ID | 33.77 | 39.79 | -6.03 | [-9.80, -3.25] | 0.000 | 0.031 |
+| [mean] mmr_level k=10: ft vs base | OOD | 30.29 | 28.33 | +1.96 | [-3.76, 4.00] | 0.394 | 0.625 |
+| [mean] mmr_level k=10: ft+ICL vs ft k0 | ID | 33.77 | 22.20 | +11.56 | [4.15, 18.62] | 0.000 | 0.031 |
+| [mean] mmr_level k=10: ft+ICL vs ft k0 | OOD | 30.29 | 34.10 | -3.81 | [-15.43, 2.06] | 0.250 | 0.438 |
+| [mean] mmr_level k=10: base+ICL vs base k0 | ID | 39.79 | 89.51 | -49.72 | [-59.74, -36.92] | 0.000 | 0.031 |
+| [mean] mmr_level k=10: base+ICL vs base k0 | OOD | 28.33 | 67.94 | -39.61 | [-56.68, -8.74] | 0.019 | 0.312 |
 | [mean] random k=10: ft vs base | ID | 40.02 | 39.99 | +0.03 | [-1.39, 2.10] | 0.960 | 1.000 |
 | [mean] random k=10: ft vs base [trace_seed] | ID | 40.02 | 39.99 | +0.03 | [-2.16, 2.15] | 0.997 | 0.944 |
 | [mean] random k=10: ft vs base | OOD | 46.91 | 46.48 | +0.43 | [-0.68, 3.62] | 0.508 | 0.625 |
@@ -151,6 +183,30 @@ Cells are `ID / OOD` tail RMSE (±std over seeds where multi-seed).
 | [median] op_knn k=10: ft+ICL vs ft k0 | OOD | 34.89 | 33.03 | +1.85 | [-17.86, 8.63] | 0.805 | 0.812 |
 | [median] op_knn k=10: base+ICL vs base k0 | ID | 47.67 | 109.91 | -62.24 | [-74.93, -47.04] | 0.000 | 0.031 |
 | [median] op_knn k=10: base+ICL vs base k0 | OOD | 38.89 | 85.86 | -46.97 | [-69.77, -16.09] | 0.009 | 0.125 |
+| [median] ctx_level k=5: ft vs base | ID | 39.40 | 43.14 | -3.74 | [-9.73, 1.43] | 0.175 | 0.219 |
+| [median] ctx_level k=5: ft vs base | OOD | 29.85 | 30.27 | -0.42 | [-7.94, 1.06] | 0.727 | 0.812 |
+| [median] ctx_level k=5: ft+ICL vs ft k0 | ID | 39.40 | 25.33 | +14.07 | [4.37, 22.13] | 0.000 | 0.031 |
+| [median] ctx_level k=5: ft+ICL vs ft k0 | OOD | 29.85 | 33.03 | -3.19 | [-16.42, 1.14] | 0.173 | 0.312 |
+| [median] ctx_level k=5: base+ICL vs base k0 | ID | 43.14 | 109.91 | -66.77 | [-80.15, -51.69] | 0.000 | 0.031 |
+| [median] ctx_level k=5: base+ICL vs base k0 | OOD | 30.27 | 85.86 | -55.59 | [-76.39, -27.70] | 0.000 | 0.062 |
+| [median] ctx_level k=10: ft vs base | ID | 38.81 | 39.96 | -1.15 | [-2.70, 1.31] | 0.301 | 0.438 |
+| [median] ctx_level k=10: ft vs base | OOD | 30.20 | 32.21 | -2.01 | [-9.02, 0.34] | 0.099 | 0.438 |
+| [median] ctx_level k=10: ft+ICL vs ft k0 | ID | 38.81 | 25.33 | +13.48 | [5.09, 20.71] | 0.000 | 0.031 |
+| [median] ctx_level k=10: ft+ICL vs ft k0 | OOD | 30.20 | 33.03 | -2.83 | [-15.74, 1.68] | 0.320 | 0.438 |
+| [median] ctx_level k=10: base+ICL vs base k0 | ID | 39.96 | 109.91 | -69.94 | [-85.26, -52.81] | 0.000 | 0.031 |
+| [median] ctx_level k=10: base+ICL vs base k0 | OOD | 32.21 | 85.86 | -53.65 | [-74.31, -27.57] | 0.000 | 0.062 |
+| [median] mmr_level k=5: ft vs base | ID | 40.31 | 44.81 | -4.50 | [-7.13, -1.78] | 0.000 | 0.062 |
+| [median] mmr_level k=5: ft vs base | OOD | 32.59 | 28.58 | +4.00 | [-7.08, 8.40] | 0.613 | 1.000 |
+| [median] mmr_level k=5: ft+ICL vs ft k0 | ID | 40.31 | 25.33 | +14.98 | [6.93, 22.36] | 0.000 | 0.031 |
+| [median] mmr_level k=5: ft+ICL vs ft k0 | OOD | 32.59 | 33.03 | -0.45 | [-17.76, 5.87] | 0.739 | 0.812 |
+| [median] mmr_level k=5: base+ICL vs base k0 | ID | 44.81 | 109.91 | -65.10 | [-79.65, -48.12] | 0.000 | 0.031 |
+| [median] mmr_level k=5: base+ICL vs base k0 | OOD | 28.58 | 85.86 | -57.27 | [-77.37, -29.32] | 0.000 | 0.062 |
+| [median] mmr_level k=10: ft vs base | ID | 40.18 | 44.10 | -3.92 | [-6.33, -2.05] | 0.000 | 0.031 |
+| [median] mmr_level k=10: ft vs base | OOD | 33.24 | 31.52 | +1.72 | [-3.71, 3.66] | 0.560 | 1.000 |
+| [median] mmr_level k=10: ft+ICL vs ft k0 | ID | 40.18 | 25.33 | +14.84 | [7.55, 21.72] | 0.000 | 0.031 |
+| [median] mmr_level k=10: ft+ICL vs ft k0 | OOD | 33.24 | 33.03 | +0.21 | [-17.50, 7.13] | 0.993 | 0.812 |
+| [median] mmr_level k=10: base+ICL vs base k0 | ID | 44.10 | 109.91 | -65.81 | [-81.05, -49.18] | 0.000 | 0.031 |
+| [median] mmr_level k=10: base+ICL vs base k0 | OOD | 31.52 | 85.86 | -54.34 | [-75.35, -31.17] | 0.000 | 0.062 |
 | [median] random k=10: ft vs base | ID | 45.86 | 45.16 | +0.70 | [-0.94, 2.40] | 0.380 | 0.688 |
 | [median] random k=10: ft vs base [trace_seed] | ID | 45.86 | 45.16 | +0.70 | [-1.35, 2.69] | 0.530 | 0.687 |
 | [median] random k=10: ft vs base | OOD | 50.75 | 49.60 | +1.15 | [-0.92, 4.97] | 0.279 | 0.438 |
@@ -168,6 +224,14 @@ The finetuned model trained exclusively on 512-wide windows; a k=10 ICL stream i
 | mmr_euclid k=10 | median | 29.13 / 38.15 | 18.77 / 29.64 | -10.37 | -8.51 |
 | oracle_tail k=10 | mean | 9.39 / 10.89 | 19.57 / 18.00 | +10.18 | +7.11 |
 | oracle_tail k=10 | median | 16.72 / 15.25 | 29.46 / 21.19 | +12.74 | +5.94 |
+| ctx_level k=5 | mean | 33.54 / 27.42 | 29.29 / 24.58 | -4.25 | -2.85 |
+| ctx_level k=5 | median | 39.40 / 29.85 | 36.24 / 26.84 | -3.16 | -3.01 |
+| ctx_level k=10 | mean | 32.32 / 28.37 | 29.29 / 24.58 | -3.02 | -3.79 |
+| ctx_level k=10 | median | 38.81 / 30.20 | 36.24 / 26.84 | -2.57 | -3.36 |
+| mmr_level k=5 | mean | 34.64 / 29.57 | 30.18 / 29.22 | -4.46 | -0.34 |
+| mmr_level k=5 | median | 40.31 / 32.59 | 36.93 / 31.38 | -3.38 | -1.20 |
+| mmr_level k=10 | mean | 33.77 / 30.29 | 30.18 / 29.22 | -3.59 | -1.07 |
+| mmr_level k=10 | median | 40.18 / 33.24 | 36.93 / 31.38 | -3.24 | -1.86 |
 
 | A vs B | split | RMSE A | RMSE B | Δ(A−B) | 95% CI | p_boot | p_wilcoxon |
 |---|---|---|---|---|---|---|---|
@@ -183,6 +247,22 @@ The finetuned model trained exclusively on 512-wide windows; a k=10 ICL stream i
 | [mean] oracle_tail k=10: win512 vs full | OOD | 18.00 | 10.89 | +7.11 | [3.83, 9.86] | 0.000 | 0.125 |
 | [median] oracle_tail k=10: win512 vs full | ID | 29.46 | 16.72 | +12.74 | [-3.27, 19.21] | 0.172 | 0.688 |
 | [median] oracle_tail k=10: win512 vs full | OOD | 21.19 | 15.25 | +5.94 | [4.73, 7.26] | 0.000 | 0.062 |
+| [mean] ctx_level k=5: win512 vs full | ID | 29.29 | 33.54 | -4.25 | [-8.23, -1.49] | 0.006 | 0.094 |
+| [mean] ctx_level k=5: win512 vs full | OOD | 24.58 | 27.42 | -2.85 | [-8.52, 5.62] | 0.652 | 0.625 |
+| [median] ctx_level k=5: win512 vs full | ID | 36.24 | 39.40 | -3.16 | [-7.90, -0.53] | 0.003 | 0.062 |
+| [median] ctx_level k=5: win512 vs full | OOD | 26.84 | 29.85 | -3.01 | [-6.56, 5.09] | 0.558 | 1.000 |
+| [mean] ctx_level k=10: win512 vs full | ID | 29.29 | 32.32 | -3.02 | [-8.82, -0.12] | 0.043 | 0.156 |
+| [mean] ctx_level k=10: win512 vs full | OOD | 24.58 | 28.37 | -3.79 | [-9.98, 5.83] | 0.648 | 0.812 |
+| [median] ctx_level k=10: win512 vs full | ID | 36.24 | 38.81 | -2.57 | [-8.58, 0.80] | 0.219 | 0.562 |
+| [median] ctx_level k=10: win512 vs full | OOD | 26.84 | 30.20 | -3.36 | [-7.33, 6.43] | 0.497 | 0.438 |
+| [mean] mmr_level k=5: win512 vs full | ID | 30.18 | 34.64 | -4.46 | [-7.86, -1.71] | 0.000 | 0.031 |
+| [mean] mmr_level k=5: win512 vs full | OOD | 29.22 | 29.57 | -0.34 | [-6.28, 12.17] | 0.917 | 0.625 |
+| [median] mmr_level k=5: win512 vs full | ID | 36.93 | 40.31 | -3.38 | [-7.28, -1.47] | 0.000 | 0.031 |
+| [median] mmr_level k=5: win512 vs full | OOD | 31.38 | 32.59 | -1.20 | [-3.84, 8.10] | 0.650 | 1.000 |
+| [mean] mmr_level k=10: win512 vs full | ID | 30.18 | 33.77 | -3.59 | [-7.67, -1.14] | 0.000 | 0.031 |
+| [mean] mmr_level k=10: win512 vs full | OOD | 29.22 | 30.29 | -1.07 | [-7.40, 11.45] | 0.803 | 0.625 |
+| [median] mmr_level k=10: win512 vs full | ID | 36.93 | 40.18 | -3.24 | [-8.17, -0.87] | 0.000 | 0.031 |
+| [median] mmr_level k=10: win512 vs full | OOD | 31.38 | 33.24 | -1.86 | [-5.03, 8.70] | 0.620 | 1.000 |
 
 ## Severin-protocol anchor (notebook eval, both metrics)
 
@@ -303,14 +383,31 @@ distance scores ≈ random (op_knn k5 39.55 vs random k10 40.02 ID mean;
 mmr_euclid k5: 18.62) — the operating parameters do not identify
 level-matched examples either; Phase-2's base-model "op_knn ≈ ctx" verdict
 generalizes (mechanism analysis: `mechanism_table.md`).
-(4) **Bad examples destroy the finetuned advantage**: with random k=10
+(3b) **Level-aware retrieval (Part A, 2026-06-13) is the OOD lever ICL was
+missing on the ft model.** The level-matching `ctx_level` retriever
+(`|mean(ctx)−mean(query)|`, the signal the tail metric scores) and the
+`mmr_level` hybrid (level relevance + shape diversity) were added after
+Phase 6, which only had shape-matching `mmr_euclid`. On the ft model the
+level-vs-shape split is clean and mirrors the model-free `level_matching`
+follow-up: `ctx_level` **significantly improves ft OOD** (k=5 mean 27.42 vs
+ft k0 34.10, Δ−6.68, CI [−13.97, −3.35], p_boot 0.000; k=10 28.37, p 0.000)
+and reaches **24.58 OOD under the 512 clamp** — the best legitimate ft OOD,
+overturning the Phase-6 "no legit ICL config improves OOD" reading below —
+while `mmr_euclid` (shape) leaves OOD AT/ABOVE ft k0 (36.00) yet still wins
+ID (18.62 vs ctx_level's 32.32). `mmr_level` sits between on both axes
+(OOD 29.57, ID 34.64 at k5 mean), dominating neither — the shape-diversity
+penalty re-admits wrong-level mass that hurts OOD. The takeaway: **shape
+retrieval for ID, level retrieval for OOD; no single retriever wins both**,
+exactly the model-free `level_matching` verdict carried onto the finetuned
+model. (4) **Bad examples destroy the finetuned advantage**: with random k=10
 examples ft ≈ base exactly (40.02 vs 39.99 ID; +0.03, n.s. even at
 trace_seed resolution) — random examples drag the ft model from 22.20 UP to
 ~39, the same level they pull the base DOWN to from 89.51. Once the model
-is finetuned, example quality is no longer optional. (5) **OOD is
-finetuning's story alone**: 67.94 → 34.10 at k=0; no legit ICL config
-improves it further (mmr +1.9..+3.1); only the window clamp mildly helps
-(32.34). (6) **The 512-window clamp helps legit retrieval but HURTS the
+is finetuned, example quality is no longer optional. (5) **OOD is mostly
+finetuning's story** (67.94 → 34.10 at k=0); shape retrieval does not
+improve it (mmr +1.9..+3.1, only the window clamp mildly helps to 32.34),
+but **level-aware retrieval does** — see (3b): `ctx_level` mean reaches
+27.42 (full) / 24.58 (win512), significantly below ft k0. (6) **The 512-window clamp helps legit retrieval but HURTS the
 oracle — the mechanism is context COMPOSITION, not window-length
 mismatch.** The clamp beats the full window in all 8 mmr cells (−3.0 to
 −10.4) yet destroys the oracle ceiling (9.39 → 19.57 ID mean): mmr/ctx

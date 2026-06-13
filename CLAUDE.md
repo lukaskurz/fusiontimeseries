@@ -75,7 +75,9 @@ src/fusiontimeseries/
 │       ├── baselines.py       # persistence / pool tail-mean / kNN-copy
 │       ├── selection.py       # Phase-2 retrieval strategies: STRATEGIES,
 │       │                      #   make_select_fn (op_knn / ctx_euclid / ctx_dtw /
-│       │                      #   ctx_growth / oracle_tail / mmr_euclid)
+│       │                      #   ctx_growth / ctx_level / oracle_tail /
+│       │                      #   mmr_euclid / mmr_level [Part A: level
+│       │                      #   relevance + shape diversity])
 │       ├── rerun_ksweep.py    # fixed-pool re-run of the old k-sweeps; also
 │       │                      #   MODEL_SLUGS + PREDICT_FACTORIES model wrappers
 │       │                      #   + make_chronos2_pipeline factory
@@ -348,7 +350,16 @@ retrieval quality — ft k=0 22.20 ID (mean) already beats best base ICL
 project best legit** (marginal gain n.s. at n=6; direction consistent);
 oracle stacks significantly (9.39 ID/10.89 OOD) → ICL capacity survives
 finetuning, retrieval is the bottleneck; random examples erase the ft
-advantage; OOD is finetuning-only (67.94 → 34.10). METRIC AUDIT: the
+advantage; OOD is MOSTLY finetuning-only (67.94 → 34.10) but see Part A.
+PART A (2026-06-13): level-aware retrieval added to the v6 grid
+(ctx_level + mmr_level k5/k10 appended to ICL_CONFIGS + WINDOW_CONFIGS,
+~24 new cells, skip-if-exists left the rest untouched). Level-vs-shape
+split holds on the ft model: ctx_level SIGNIFICANTLY improves ft OOD
+(34.10 → 27.42 k5 mean, p_boot 0.000; → 24.58 @win512 = best legit ft OOD,
+overturns "no legit ICL improves OOD"), mmr_euclid (shape) still wins ID
+(18.62) but leaves OOD ≥ ft-k0, mmr_level dominates neither — shape
+retrieval for ID, level retrieval for OOD; best_legit unchanged
+(mmr_euclid k5), ladder rungs unchanged. METRIC AUDIT: the
 chronos2 finetuning notebooks score mean(x[:-80]) INCLUDING the 80 copied
 context steps — README 13.83/4.86 is on that easier metric; honest [-80:]
 rescore of the same forecasts: ID 17.51 / OOD 40.64 (OOD advantage largely

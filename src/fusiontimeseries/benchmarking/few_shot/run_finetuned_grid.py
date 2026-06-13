@@ -105,6 +105,16 @@ ICL_CONFIGS: tuple[tuple[str, int], ...] = (
     # on those params; Phase-2's "op_knn ≈ ctx" verdict was base-model only).
     ("op_knn", 5),
     ("op_knn", 10),
+    # Part A (2026-06-13): level-aware retrieval on the finetuned model.
+    # ctx_level (match absolute context level — the signal the tail-mean metric
+    # scores) and mmr_level (level relevance + shape diversity) postdate Phase 6
+    # (which only had mmr_euclid shape-matching). The model-free + Bolt
+    # level_matching follow-up showed level-matching beats shape-matching
+    # dramatically OOD; this tests whether that stacks on the ft model.
+    ("ctx_level", 5),
+    ("ctx_level", 10),
+    ("mmr_level", 5),
+    ("mmr_level", 10),
 )
 WINDOW_CONFIGS: tuple[tuple[str, int], ...] = (
     ("mmr_euclid", 5),
@@ -112,6 +122,11 @@ WINDOW_CONFIGS: tuple[tuple[str, int], ...] = (
     # Robustness cell B (2026-06-13): the cheating ceiling at the training
     # window — does clamping help even when the examples are oracle-picked?
     ("oracle_tail", 10),
+    # Part A (2026-06-13): level-aware retrieval @ the 512 training window.
+    ("ctx_level", 5),
+    ("ctx_level", 10),
+    ("mmr_level", 5),
+    ("mmr_level", 10),
 )
 RANDOM_K: int = 10
 

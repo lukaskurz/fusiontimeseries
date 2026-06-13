@@ -77,14 +77,34 @@ uniquely motivated there, since the model *is* conditioned on those params)
 scores ≈ random (39.6 vs 40.0 ID) — Phase-2's "params don't beat context"
 verdict generalizes even to the conditioned model.
 
-**OOD is finetuning's story alone** ($67.94 \to 34.10$ at $k=0$; no legit ICL
-config improves it). The **512-window clamp is a context-composition effect,
+**OOD is mostly finetuning's story** ($67.94 \to 34.10$ at $k=0$); *shape*
+retrieval does not improve it (mmr $+1.9$–$3.1$), but *level-aware* retrieval
+does (Part A, below). The **512-window clamp is a context-composition effect,
 not window-length mismatch**: it beats full-window in all 8 mmr cells (under
 the clamp $k{=}5 \equiv k{=}10$ bit-identically — only the last example's tail
 + query survive) yet *destroys* the oracle ceiling ($9.39 \to 19.57$ ID) — a
 crude tail-selector that drops the wrong-level mass legit retrieval inevitably
 includes. The shipped step-200 checkpoint beats the final step-4000 weights
 everywhere (overtraining degrades ICL most).
+
+**Level-aware retrieval on the finetuned model (Part A).** Phase 6 used only
+the shape-matching `mmr_euclid`; the
+[`level_matching`](../results/fewshot/level_matching.md) follow-up later showed
+that matching the absolute context *level* (`|mean(ctx)−mean(query)|`, the
+signal the tail metric scores) beats shape-matching dramatically OOD. Re-running
+the grid with `ctx_level` and a level-aware MMR hybrid (`mmr_level`: level
+relevance + shape diversity) on the *finetuned* model reproduces the
+level-vs-shape split cleanly: **`ctx_level` significantly improves ft OOD**
+($34.10 \to 27.42$ at $k{=}5$ mean, $p_\text{boot}=0.000$; $\to 24.58$ under the
+512 clamp — the best legitimate ft OOD), while `mmr_euclid` leaves OOD *at or
+above* ft $k{=}0$ (36.00) yet still wins ID (18.62 vs `ctx_level`'s 32.32).
+`mmr_level` lands between on both axes (OOD 29.57 / ID 34.64 at $k{=}5$ mean),
+dominating neither — its shape-diversity penalty re-admits the wrong-level mass
+that hurts OOD. The takeaway is the model-free verdict carried onto the
+finetuned model: **shape retrieval for ID, level retrieval for OOD — no single
+80-step-context retriever wins both.** This is consistent with the
+level-calibration mechanism (below): the OOD gain is exactly a level-bias
+reduction the shape distance z-scores away.
 
 **The mechanism is level calibration — all of it.** In all 16
 config-vs-anchor comparisons the level term absorbs ~100% of the change
