@@ -397,15 +397,68 @@ def make_verdict(v9: dict[V9Key, dict], v6_index: dict) -> list[str]:
     return lines
 
 
-#: Finalized after the eval run (data-driven scaffold above stays).
+#: Finalized after the eval run (data-driven scaffold above stays). Numbers are
+#: mean decoding unless noted; paired bootstrap over traces, n=6 ID / 5 OOD.
 VERDICT = """
-**Verdict — TBD (finalized after the ICF eval run).** The two probes:
-(1) **ICF-level vs ICF-random** at matched eval configs — separation means the
-level checkpoint learned to USE level-matched demonstrations rather than merely
-tolerate demos; (2) **ICF vs v6 single-trace ft** — whether training on
-demonstrations beats the inherited-from-pretraining ICL ability. With n=6 ID /
-5 OOD traces the comparisons are reported with bootstrap CIs and not
-over-claimed.
+**Verdict — ICF teaches the model to USE level-matched demonstrations (the
+oracle proves it), but does NOT beat the base-pretrained ICL ability under
+realistic retrieval; retrieval quality stays the binding constraint.**
+
+(1) **ICF makes the model demonstration-DEPENDENT.** Both ICF checkpoints
+collapse at k=0 (ICF-level 59.76 ID, ICF-random 46.52, vs the single-trace v6
+ft model's 22.20) — trained always with k∈{1,3,5} demos, they are poor without
+any. ICL then helps both *massively and significantly* (ctx_level k=5 vs own
+k0: level −29.7 ID p=0.012, random −29.0 ID p=0.000). So "did it learn to use
+demonstrations?" is unambiguously YES — the model became demo-driven where the
+single-trace v6 model was not.
+
+(2) **The random control proves the usage is LEVEL-SPECIFIC — the oracle is the
+smoking gun.** Given perfectly level-matched demos (the cheating oracle),
+ICF-level dominates ICF-random: **OOD 7.49 vs 61.82 (Δ−54.3, CI [−85.6,
+−11.6], p_boot 0.000)** and ID 22.20 vs 32.80 (Δ−10.6, p_boot 0.042). The level
+model's oracle gain over its own k0 is large and significant (ID −37.6, OOD
+−27.6); the random model gains essentially nothing from oracle demos (R+ICL vs
+R k0 at oracle: ID −13.7 p=0.164, OOD −2.9 p=0.673) and oracle demos even make
+it WORSE than its own random-demo cell (32.80 vs 20.43 ID). Trained on
+mixed-level demos, the random control learned to *ignore* demo level, so it
+cannot exploit level-matched ones; trained on level-matched demos, the level
+model learned exactly that. This is the cleanest separation in the study and it
+is what the control was designed to detect.
+
+(3) **But realistic retrieval cannot deliver oracle-quality matches, so
+demonstration-training does NOT beat inherited ICL.** Under `ctx_level`
+retrieval ICF-level ≈ the v6 single-trace ft model (k=10: ID −0.27 n.s., OOD
++1.9 n.s.; k=5: ID −3.5 n.s., OOD +2.4 n.s.) and the project's best legitimate
+ID (15.63, v6 ft mmr_euclid @ the 512 window) is unbeaten. The ICF advantage
+materializes only at the oracle — the same Phase-7 wall: the pool holds a level
+twin for every query but no 80-step-context distance reliably finds it. ICF
+moved the *ceiling* (level-oracle OOD 7.49 beats v6's oracle 10.89, p_boot
+0.000), not the *realized* number.
+
+(4) **A sharp ID/OOD personality split between the two ICF models under
+realistic retrieval.** ICF-random is ID-optimised — ctx_level k=10 reaches
+16.35 ID (its best, and close to the project floor) but catastrophic 57.2 OOD;
+it learned a level-blind demo-amplitude trick that helps the tightly-clustered
+ID levels and blows up on the wide OOD levels (and the oracle cannot rescue it).
+ICF-level is balanced (ctx_level ≈ 30 ID / 30 OOD) because it relies on level
+matching, which transfers to OOD. Neither dominates: random wins ID, level wins
+OOD, mirroring the model-free / v6 "shape for ID, level for OOD" split one layer
+up — here it is the TRAINING-demo distribution, not the eval retriever, that
+sets which axis the model optimises.
+
+**Bottom line.** Demonstration-training works as intended — the model learns to
+use (level-matched) demonstrations, definitively shown by the oracle control —
+but it does not lift the realized benchmark past the inherited ICL ability,
+because inference-time retrieval over an 80-step context still cannot supply the
+level-matched demonstrations the trained model now knows how to exploit. The
+result is a strong joint statement: *the bottleneck was never the model's
+in-context capacity (pretrained or ICF-trained) — it is retrieval, and closing
+it needs side information, not more in-context training.* Caveats: n=6 ID / 5
+OOD ⇒ most head-to-head differences are not individually significant (the OOD
+oracle separation, p_boot 0.000, is the robust headline); two single training
+runs; ICF models at the 2048 window vs v6 at 8192 (each at its own training
+window); the random control's strong ID is real but level-blind (the oracle
+exposes it).
 """.rstrip()
 
 
