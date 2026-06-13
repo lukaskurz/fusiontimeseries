@@ -419,31 +419,41 @@ re-runnable).
 
 ---
 
-## Phase 8 — Write-up & integration
+## Phase 8 — Write-up & integration ✅ (2026-06-13)
 
 **Goal**: fold everything into the README, docs, and thesis material.
 
 **Tasks**:
-- [ ] Update README few-shot section: retrieval results, format results,
-      ladder table; keep the GyroSwin-baseline framing.
-- [ ] Method write-up in `docs/methods/` (example selection + presentation
-      format), mirroring Severin's BilinearLoRA docs.
-- [ ] Reconcile evaluation details with Severin's side (same metric, same
-      test traces, same seeds where possible) so both halves are directly
-      comparable in the thesis.
-- [ ] Related-work paragraph: TimesFM-ICF, Chronos-2 ICL, retrieval-augmented
-      forecasting (RAF / TS-RAG / TimeRAF / RAFT), ICL example-selection
-      findings from NLP (Liu et al.
-      [2101.06804](https://arxiv.org/abs/2101.06804)).
-- [ ] Discussion framing from the chaotic-systems literature: context
-      parroting + invariant statistics
-      ([2505.11349](https://arxiv.org/abs/2505.11349),
-      [2409.15771](https://arxiv.org/abs/2409.15771)), transformer-ICL
-      collapse-to-the-mean theory
-      ([2510.09776](https://arxiv.org/abs/2510.09776)); mean-vs-median
-      point-estimate justification (RMSE → conditional mean).
+- [x] Update README few-shot section: retrieval results, format results,
+      ladder table; keep the GyroSwin-baseline framing. (Sections 1–3 were
+      already current through Phase 7; Phase 8 added the "Evaluation
+      reconciliation" and "Related work, discussion, and method write-ups"
+      pointer subsections + rebuilt the References list, 14 entries.)
+- [x] Method write-up in `docs/methods/`, mirroring Severin's BilinearLoRA
+      docs — **fuller doc set** (one per phase): `example_selection.md`,
+      `presentation_format.md`, `operating_param_covariates.md`,
+      `decoding_and_ensembling.md`, `icl_finetuning_synergy.md`, the standalone
+      narrative `few_shot_icl.md`, and a `docs/methods/README.md` index.
+- [x] Reconcile evaluation details with Severin's side — **re-run to align**
+      (not document-only): `few_shot/reconciliation.py` (Phase0BenchmarkProvider
+      over the `[0::3]` 267-step phase, duck-compatible with
+      BenchmarkDataProvider) + `run_reconciliation.py` (10-cell ladder re-run,
+      shared scaling / mean / single seed 42 / honest `[-80:]`) +
+      `analyze_reconciliation.py` → `docs/results/fewshot/evaluation_reconciliation.md`
+      + `reconciliation_ladder.png`. Findings: tail mean is empirically
+      phase-invariant (max rel Δ 0.3%); robust rungs (ft k=0, baselines)
+      replicate, best-config retrieval-ICL rungs are phase-sensitive
+      (documented, not hidden); Severin's honest-rescore rung lands among the
+      finetuned rungs. (His finetuning variants cannot be re-derived — no
+      checkpoints — so his published rows stay annotated with the metric note.)
+- [x] Related-work paragraph: TimesFM-ICF, Chronos-2 ICL, RAF / TS-RAG /
+      TimeRAF / RAFT, Liu et al. — in `docs/methods/few_shot_icl.md` (standalone
+      narrative, per the session's choice) + README pointer + References.
+- [x] Discussion framing from the chaotic-systems literature (context parroting
+      + invariant statistics, transformer-ICL collapse-to-the-mean,
+      mean-vs-median justification) — in `docs/methods/few_shot_icl.md`.
 
-**Deliverable**: updated README + docs; thesis-ready tables and figures.
+**Deliverable**: updated README + docs; thesis-ready tables and figures. ✅
 
 ---
 
@@ -469,7 +479,7 @@ Phase 1 (harness)     ──┘           └── Phase 3 (format) ✅    ─�
 | 3b      | Phase 5 — ICL × finetuning ✅ (self-trained checkpoint) | 2, 3 + Severin's checkpoint | 3a, 3c |
 | 3c      | Phase 6 — covariate conditioning ✅ | 0, 1 (best config from 2/3) | 3a, 3b |
 | 4       | Phase 7 — analysis ✅ | 2–6 | — |
-| 5       | Phase 8 — write-up | all | — |
+| 5       | Phase 8 — write-up & integration ✅ | all | — |
 
 Notes for parallel worktree sessions:
 - Keep each phase's code in its own module (`few_shot/harness.py`,

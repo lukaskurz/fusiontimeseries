@@ -131,6 +131,22 @@ src/fusiontimeseries/
 │       │                             #   pick ranks, feature hunt), forecast
 │       │                             #   grids -> mechanism_table.md +
 │       │                             #   mechanism_*.png; --self-test
+│       ├── reconciliation.py         # Phase-8 reconciliation: Phase0BenchmarkProvider
+│       │                             #   ([0::3] 267-step traces via
+│       │                             #   Chronos2Dataset.get_benchmark_flux_traces,
+│       │                             #   duck-compatible w/ BenchmarkDataProvider)
+│       │                             #   + make_phase0_finetuned_forecast_fn
+│       │                             #   ([0::3] query-param resolver, the [2::3]
+│       │                             #   one can't) + phase0_tail_mean_deltas
+│       ├── run_reconciliation.py     # Phase-8 runner: 10-cell ladder on the
+│       │                             #   Phase-0 provider (shared/mean/seed 42/
+│       │                             #   honest [-80:]) -> few_shot_v8_reconciliation/
+│       │                             #   (*_reconciliation.json own glob) + --smoke
+│       ├── analyze_reconciliation.py # Phase-8 analysis: protocol-diff table +
+│       │                             #   metric audit + aligned [0::3]-vs-[2::3]
+│       │                             #   ladder + phase-invariance ->
+│       │                             #   evaluation_reconciliation.md +
+│       │                             #   reconciliation_ladder.png; --self-test
 │       └── *_fewshot_benchmark.ipynb
 ├── zeroshot/                  # Upstream's zero-shot notebooks (v1.0.0)
 ├── finetuning/
@@ -157,9 +173,12 @@ src/fusiontimeseries/
 
 playground/                    # Quick demo notebooks (utils.py has plot_forecast)
 docs/
-├── methods/                   # BilinearLoRA / OSS / RSS method docs
+├── methods/                   # LoRA conditioning docs (BilinearLoRA/OSS/RSS) +
+│                              #   few-shot ICL write-ups: one per phase +
+│                              #   few_shot_icl.md narrative + README.md index
 ├── results/                   # zeroshot + fewshot + finetuning result plots
-│   └── fewshot/               # Phase-2 selection table + figures
+│   └── fewshot/               # all phase tables + figures + Phase-8
+│                              #   evaluation_reconciliation.md + ladder
 ├── report/, poster/
 └── installation.md
 data/
@@ -353,9 +372,27 @@ z-score away the level signal (oracle picks at ctx-rank ~98/245), op_knn on
 the CONDITIONED ft model ≈ random (39.6 vs 40.0 ID; the v6 grid gained 8
 op_knn cells for this probe), best context feature (raw ctx_mean ρ=+0.89)
 caps at min d_lvl ≈ 5 vs oracle 0.26 — closing the gap needs side
-information, not a better 80-step distance.
+information, not a better 80-step distance. Phase-8 evaluation
+reconciliation (`results/few_shot_v8_reconciliation/` via
+`reconciliation.py` Phase0BenchmarkProvider + `run_reconciliation.py`;
+analysis `docs/results/fewshot/evaluation_reconciliation.md` +
+`reconciliation_ladder.png`): re-ran the adaptation ladder on Severin's
+`[0::3]` 267-step phase under the honest `[-80:]` tail + single seed 42, so
+both halves of the project sit on ONE internally-consistent ladder. The
+saturation level is empirically phase-invariant (per-trace `[0::3]`-vs-`[2::3]`
+true-tail-mean delta median 0.08% / max 0.32%), so the phases are comparable;
+the phase-ROBUST rungs are exactly the load-bearing ones (ft k=0 22.56 vs
+22.20 ID, base zero-shot, baselines all agree within a few RMSE) while the
+best-config retrieval-ICL rungs are phase-SENSITIVE (ft+ICL mmr5 29.90 `[0::3]`
+vs 18.62 `[2::3]`; win512 gain does not replicate) — the forecast rides the
+phase-shifted 80-step context, reinforcing the n=6 non-significance of the
+marginal ICL gain (documented, not hidden). Severin's honest-rescore rollout
+rung (17.5 ID / 40.6 OOD) lands among the finetuned rungs. His finetuning
+variants are NOT re-derived (no checkpoints); his published rows stay
+annotated with the metric note. Six per-phase method docs +
+`few_shot_icl.md` narrative + `README.md` index now live in `docs/methods/`.
 `docs/results/` has plots; `docs/methods/`
-documents the Bilinear/OSS/RSS LoRA variants.
+documents the Bilinear/OSS/RSS LoRA variants and the few-shot ICL phases.
 
 ---
 
@@ -386,5 +423,12 @@ finetuned.py + run_finetuned_grid.py + analysis, synergy verdict +
 Phase 7: mechanism analysis — harness forecast_callback hook,
 run_mechanism_dump.py full-forecast dumps + analyze_mechanism.py
 (decomposition / horizon / oracle-gap / forecast grids), v6 op_knn probe,
-level-calibration verdict)
+level-calibration verdict;
+Phase 8: write-up & integration — evaluation reconciliation re-run on
+Severin's [0::3] phase (reconciliation.py + run_reconciliation.py +
+analyze_reconciliation.py → few_shot_v8_reconciliation/ +
+evaluation_reconciliation.md + reconciliation_ladder.png; tail mean
+phase-invariant, robust rungs replicate, best-config ICL phase-sensitive),
+six per-phase method docs + few_shot_icl.md narrative + docs/methods index,
+README References rebuilt + reconciliation/related-work/method-docs pointers)
 **Upstream Maintainer**: Severin Bergsmann (sbergsmann)

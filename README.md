@@ -208,6 +208,20 @@ Phase 7 explains the *why* behind the ladder. Thirteen headline cells were re-ru
 - **No genuine horizon extension.** Median tracking horizons (normalized error ε̃ > 1) are ~8–22 steps everywhere — the truth's own correlation time is only 8–9 steps. Every TSFM rollout under-disperses (std ratio ≤ 0.6, frequent exact flatlines) and over-smooths (forecast correlation times 12–17 vs truth 8–9); only oracle-quality examples keep truth-like fluctuation statistics. The GyroSwin ~110-step comparison is qualitative only (different metric, 5D states).
 - **The oracle gap is an information limit of the 80-step context.** The pool contains a near-exact level twin for every query (pool-min level distance ≤ 0.9, median 0.23), but the oracle's picks rank ~98/245 under context distance (chance ≈ 122) — because every retrieval distance z-scores the context, erasing exactly the level signal the metric scores. Operating params see level only partially (ρ = +0.49), and the **op_knn-on-the-finetuned-model probe** (the one selector uniquely motivated there, since the model is conditioned on those params) scores ≈ random (39.6 vs 40.0 ID; mmr 18.62) — Phase-2's negative verdict generalizes. The strongest context-side level signal (raw context mean, ρ = +0.89 with own tail) still only reaches a level-match of ≈5 flux units vs the oracle's 0.26. Closing the gap needs side information (a trained level predictor, more physics, labels), not a better distance over the same 80 steps.
 
+#### Evaluation reconciliation: one ladder across both halves
+
+The few-shot side scores the `[2::3]` 266-step subsample; Severin's finetuning side scores `[0::3]` 267 steps of the **same raw simulations** (and the chronos2 notebooks use the `mean(x[:-80])` metric audited above). Phase 8 re-runs the adaptation ladder on the `[0::3]` phase under the honest `[-80:]` tail and single seed 42, so both halves sit on one internally-consistent ladder (`benchmarking/few_shot/run_reconciliation.py` → `results/few_shot_v8_reconciliation/`, analysis in [docs/results/fewshot/evaluation_reconciliation.md](docs/results/fewshot/evaluation_reconciliation.md)). The finetuned rungs use our recipe-faithful self-trained BilinearLoRA checkpoint (his finetuning variants cannot be re-derived — no checkpoints — so his published rows stay annotated with the metric note rather than re-run).
+
+![Reconciliation ladder](docs/results/fewshot/reconciliation_ladder.png)
+
+- **The saturation level is empirically phase-invariant** — the per-trace `[0::3]`-vs-`[2::3]` true-tail-mean delta is < 1% (median 0.08%, max 0.32%) across all 11 traces — so the two phases are directly comparable, and any ladder-rung difference is method (rollout/window), not trace selection.
+- **The phase-robust rungs are exactly the ones the conclusions rest on**: finetuning k=0 (22.56 `[0::3]` vs 22.20 `[2::3]` ID), base zero-shot, and the model-free baselines all agree within a few RMSE.
+- **The best-config retrieval-ICL rungs are phase-sensitive** (finetuned + ICL mmr_euclid k=5: 29.90 `[0::3]` vs 18.62 `[2::3]` ID; the 512-window improvement does not replicate) — the forecast rides the phase-shifted 80-step context, reinforcing the already-flagged n=6 non-significance of that marginal gain. Severin's honest-rescore rollout rung (17.5 ID / 40.6 OOD) lands among the finetuned rungs: **both halves of the project sit on one ladder.**
+
+#### Related work, discussion, and method write-ups
+
+Full method write-ups (mirroring the LoRA docs) live in [docs/methods/](docs/methods/) — index in [docs/methods/README.md](docs/methods/README.md). The standalone narrative [docs/methods/few_shot_icl.md](docs/methods/few_shot_icl.md) is the thesis source: an overview tying Phases 2–7 together, a **Related work** section (TimesFM-ICF, Chronos-2 ICL, RAF / TS-RAG / TimeRAF / RAFT, Liu et al., FiLM / DiT), and a **Discussion** (context-parroting + invariant statistics, transformer-ICL collapse-to-the-mean, the mean-vs-median justification). Per-phase docs: [example selection](docs/methods/example_selection.md), [presentation format](docs/methods/presentation_format.md), [operating-parameter covariates](docs/methods/operating_param_covariates.md), [decoding & ensembling](docs/methods/decoding_and_ensembling.md), [ICL × finetuning + mechanism](docs/methods/icl_finetuning_synergy.md). All cited papers are listed under [References](#references).
+
 ### 4. Finetuning Results
 
 *by Severin Bergsmann*
@@ -243,10 +257,11 @@ See the [Installation Guide](docs/installation.md) for detailed setup instructio
 
 ```
 docs/
-├── methods/           # BilinearLoRA, OSSBilinearLoRA, RSSBilinearLoRA write-ups
+├── methods/           # LoRA conditioning docs + few-shot ICL write-ups (see methods/README.md)
 ├── poster/            # Poster presentations
 ├── report/            # Progress reports
 ├── results/
+│   ├── fewshot/       # Few-shot tables, figures, evaluation reconciliation
 │   ├── finetuning/    # Finetuning forecast plots (chronos2/, timesfm/)
 │   └── zeroshot/      # Zero-shot forecast plots
 └── installation.md
@@ -254,7 +269,7 @@ docs/
 
 ## References
 
-[1] GyroSwin: 5D Surrogates for Gyrokinetic Plasma Turbulence Simulations
+[1] **GyroSwin: 5D Surrogates for Gyrokinetic Plasma Turbulence Simulations** — Paischer et al., 2025 — https://arxiv.org/abs/2510.07314 (evaluation protocol + baselines)
 
 ```bibtex
 @misc{paischer2025gyroswin5dsurrogatesgyrokinetic,
@@ -267,3 +282,19 @@ docs/
       url={https://arxiv.org/abs/2510.07314},
 }
 ```
+
+**Few-shot ICL — related work** (discussed in [docs/methods/few_shot_icl.md](docs/methods/few_shot_icl.md)):
+
+- [2] TimesFM-ICF: In-Context Fine-Tuning for Time-Series Foundation Models — https://arxiv.org/pdf/2410.24087
+- [3] Chronos-2: From Univariate to Universal Forecasting — https://arxiv.org/abs/2510.15821
+- [4] RAF: Retrieval Augmented Time Series Forecasting — https://arxiv.org/pdf/2411.08249
+- [5] TS-RAG: Retrieval-Augmented Generation for Time Series — https://arxiv.org/pdf/2503.07649
+- [6] TimeRAF: Retrieval-Augmented Foundation Model for Time Series — https://arxiv.org/pdf/2412.20810
+- [7] RAFT: Retrieval-Augmented Forecasting with Time-series — https://arxiv.org/pdf/2511.05859
+- [8] Liu et al., What Makes Good In-Context Examples for GPT-3? — https://arxiv.org/abs/2101.06804
+- [9] Modi & Pan, ensembling time-series foundation-model forecasts — https://arxiv.org/abs/2508.16641
+- [10] Zhang & Gilpin, Context parroting in time-series foundation models — https://arxiv.org/abs/2505.11349
+- [11] Zhang & Gilpin, Zero-shot forecasting of chaotic systems — https://arxiv.org/abs/2409.15771
+- [12] Why Do Transformers Fail to Forecast Time Series In-Context? — https://arxiv.org/abs/2510.09776
+- [13] FiLM: Feature-wise Linear Modulation — https://arxiv.org/abs/1709.07871
+- [14] DiT: Scalable Diffusion Models with Transformers (adaLN conditioning) — https://arxiv.org/abs/2212.09748
