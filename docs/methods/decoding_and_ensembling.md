@@ -59,7 +59,9 @@ their Phase-3/4 twins), analysis in
   significantly *worse* ($+1.05$ ID / $+1.57$ OOD) and its native mean head
   worse still ($+2.01$ / $+3.46$) — since meanhead $\ge$ decile-mean $\ge$
   median there, the failure is the mean *statistic* interacting with TimesFM's
-  wide right tail under ICL, not the decile-truncation bias.
+  wide right tail under ICL, not the decile-truncation bias. (**Revised by the
+  quantile-grid follow-up below** — a higher *quantile* does help TimesFM; its
+  median/mean/mean-head merely coincide, so the 3-option comparison missed it.)
 - **Seed ensembling works; cross-model ensembling does not.** Averaging the 20
   random-set forecasts beats per-seed scoring for every model/decoding ($-1.7$
   to $-5.7$ ID, all bootstrap $p \le 0.001$) but its best cell (Bolt mean
@@ -69,6 +71,57 @@ their Phase-3/4 twins), analysis in
 
 This is the first direct evidence that the few-shot metric is *level*-bound, a
 theme [Phase 7](icl_finetuning_synergy.md) makes exact.
+
+## Follow-up: sweeping the full quantile grid (2026-06-14)
+
+Mean-vs-median is just *which number you read off the predictive distribution*,
+so the natural question is whether a *different* fixed readout is better. We
+swept every available quantile **level** (not index — the models do not share a
+grid: Chronos-2 emits 21 quantiles $0.01..0.99$, the others 9 at $0.1..0.9$),
+plus the quantile-mean and TimesFM's mean head, at zero-shot $k{=}0$ and the
+best retrieval config (`mmr_euclid` shared $k{=}5$), for all four models
+([`explore_decoding_sweep.py`](../../src/fusiontimeseries/benchmarking/few_shot/explore_decoding_sweep.py);
+$q_{0.5}$ reproduces the shipped median and `mean` the shipped decile-mean
+exactly).
+
+- **A quantile *above* the median beats the median, the quantile-mean, *and*
+  (TimesFM) the native mean head — for every model, at every config** (ID tail
+  RMSE):
+
+  | model | zero-shot: median / mean / **best** | mmr $k{=}5$: median / mean / **best** |
+  |---|---|---|
+  | Chronos-2 | 109.9 / 89.5 / **q0.80 → 67.2** | 29.4 / 27.1 / **q0.60 → 21.3** |
+  | Chronos-Bolt | 111.7 / 109.0 / **q0.80 → 87.5** | 26.4 / 25.9 / **q0.60 → 21.7** |
+  | TiRex | 78.9 / 75.7 / **q0.80 → 32.8** | 35.5 / 36.5 / **q0.70 → 20.6** |
+  | TimesFM | 97.5 / 95.9 (head 96.2) / **q0.90 → 44.4** | 28.5 / 28.5 (head 29.5) / **q0.60 → 21.0** |
+
+- **This revises the per-model decision for TimesFM.** Its median, decile-mean
+  and mean head *coincide* (28.5 / 28.5 / 29.5 at $k{=}5$ — a near-symmetric
+  predictive distribution), so Phase 5's three-option comparison concluded
+  "median". But an explicit higher quantile **does** shift it up: $q_{0.6} \to
+  21.0$ ID, $-7.5$ vs all three. So TimesFM is not an exception to "decode
+  higher"; its mean simply fails to *be* higher.
+
+- **The mechanism is unchanged — it is a global level-bias correction whose
+  optimal size tracks the config's residual under-prediction.** Median → mean →
+  high quantile is just "shift the read-out up by more." The severely
+  under-predicting zero-shot anchors want $q_{0.8}$–$q_{0.9}$; the well-retrieved
+  config wants only $q_{0.6}$ and is *hurt* by going higher; the extreme upper
+  quantiles detonate (Chronos-2 $q_{0.99}$ zero-shot → 758 ID). So the optimal
+  level is **config-dependent**, and picking it per config reads the 6/5 test
+  labels — a calibration *ceiling*/diagnostic (like `oracle_tail`), not a
+  deployable rule.
+
+- **The one defensible, deployable refinement:** $q_{0.6}$ is a strikingly
+  consistent best at the *retrieval* configs across all four models — it lands
+  every model at $\approx 21$ ID (Chronos-2 21.3, Bolt 21.7, TiRex 20.6 at
+  $q_{0.7}$, TimesFM 21.0), beating each model's mean by $\approx 4$–$16$ ID.
+  That cross-model consistency makes "decode $\approx q_{0.6}$ instead of the
+  decile-mean at the deployable configs" a reasonable upgrade of the knob —
+  still tuned on $n{=}6/5$, so it needs validation on held-out traces before it
+  is claimed as a method. A truly *adaptive* (per-query) picker would have to
+  estimate each query's residual bias = its level — i.e. the same retrieval /
+  level-estimation bottleneck the rest of the project hits.
 
 ## Relationship to prior work
 
@@ -85,7 +138,8 @@ independent noise.
 - Implementation: decoding knob in
   [`benchmarking/few_shot/rerun_ksweep.py`](../../src/fusiontimeseries/benchmarking/few_shot/rerun_ksweep.py)
   (`decode_point_forecast`, `POINT_STATS`); grid `run_decoding_grid.py`;
-  analysis `analyze_decoding.py` (seed/model ensembling).
+  analysis `analyze_decoding.py` (seed/model ensembling); quantile-grid
+  follow-up `explore_decoding_sweep.py` (level-based sweep, all four models).
 - Results:
   [`docs/results/fewshot/decoding_table.md`](../results/fewshot/decoding_table.md)
   + `decoding_effect.png`.
