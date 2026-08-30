@@ -112,8 +112,10 @@ exactly).
   labels — a calibration *ceiling*/diagnostic (like `oracle_tail`), not a
   deployable rule.
 
-- **The one defensible, deployable refinement:** $q_{0.6}$ is a strikingly
-  consistent best at the *retrieval* configs across all four models — it lands
+- **The one defensible, deployable refinement** (**partly retracted** — see
+  the 08-19 follow-up below: it holds for three of four models, not four):
+  $q_{0.6}$ is a strikingly consistent best at the *retrieval* configs across
+  all four models — it lands
   every model at $\approx 21$ ID (Chronos-2 21.3, Bolt 21.7, TiRex 20.6 at
   $q_{0.7}$, TimesFM 21.0), beating each model's mean by $\approx 4$–$16$ ID.
   That cross-model consistency makes "decode $\approx q_{0.6}$ instead of the
@@ -122,6 +124,41 @@ exactly).
   is claimed as a method. A truly *adaptive* (per-query) picker would have to
   estimate each query's residual bias = its level — i.e. the same retrieval /
   level-estimation bottleneck the rest of the project hits.
+
+## Follow-up 2: validated on training traces (2026-08-19)
+
+The debt above ("needs validation on held-out traces before it is claimed as a
+method") is now paid. The level sweep was re-run scoring **244 non-benchmark
+pool traces** instead of the 11 benchmark traces — leave-one-out retrieval,
+identical 80-step-context / tail-80 protocol, five models (the four base TSFMs
+plus the finetuned Chronos-2), 5-fold CV stratified by tail level. Full write-up
+and tables: [`decoding_calibration.md`](../results/fewshot/decoding_calibration.md).
+
+- **$q_{0.6}$ replicates for three of four base models, not four.** Selected on
+  the calibration traces without touching the test labels, it improves ID at
+  `mmr_euclid` $k{=}5$ for Chronos-2 ($27.06 \to 21.28$), TimesFM
+  ($28.46 \to 21.03$) and TiRex ($36.50 \to 25.25$); CI excludes zero for the
+  first and third. **Chronos-Bolt is an $n{=}6$ artifact** — on 244 traces
+  $q_{0.6}$ ranks third behind median and mean, and its folds split. The
+  "consistent best across all four models" phrasing above is therefore
+  **retracted**.
+- **The finetuned model needs no shift**: median-decoding calibration bias
+  $-1.70$, $P(\hat{y}>y) = 0.51$. Finetuning removed the level miscalibration
+  the quantile shift was standing in for.
+- **The mechanism is now measured, not asserted**: Pearson $r = -0.822$ over 8
+  (model, config) cells between a config's median-decoding calibration bias and
+  its selected quantile.
+- **Select by zeroing the bias, not by argmin.** Argmin on calibration RMSE is
+  scale-dominated by high-level traces; zeroing $\text{mean}(\hat{y}-y)$ never
+  loses on ID (4 wins / 6 ties over 10 cells) and recovers the test-optimal
+  quantile at both Chronos zero-shot anchors. It is an *ID-side* calibration
+  though — it loses OOD in 3 of the 4 cells where the two rules disagree.
+- **The optimum is level-conditional** (q0.50/q0.50/q0.60/q0.70 across
+  calibration level quartiles for Chronos-2), and the benchmark ID traces are
+  level-skewed (pool percentiles 29/31/64/85/87/87). So the "per-config
+  optimum" framing above is incomplete: part of it is the test set's own level
+  composition. A level-aware decoder is worth 2–6 RMSE but needs the query's
+  level — the same retrieval bottleneck, i.e. an `oracle_tail`-family ceiling.
 
 ## Relationship to prior work
 
