@@ -65,6 +65,7 @@ DEFAULT_SAVE_DIR: Path = REPO_ROOT / "results" / "few_shot_v9_icl"
 #: analyzer can separate them. (The v6 single-trace ft slug is different again.)
 ICF_SLUGS: dict[str, str] = {
     "level": "amazon/chronos-2-bilinear-icf-level",
+    "shape": "amazon/chronos-2-bilinear-icf-shape",
     "random": "amazon/chronos-2-bilinear-icf-random",
 }
 
@@ -161,7 +162,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Phase-9 ICF eval grid")
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument(
-        "--icl-retrieval", choices=("level", "random"), required=True,
+        "--icl-retrieval", choices=("level", "shape", "random"), required=True,
         help="which ICF checkpoint this is (sets the result slug)",
     )
     parser.add_argument("--device", default="mps")

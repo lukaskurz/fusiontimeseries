@@ -36,7 +36,7 @@ N_FOLDS = 5
 N_BOOTSTRAP = 10_000
 #: Print order; models absent from the JSONL are skipped.
 MODEL_ORDER = ("chronos2", "chronos_bolt", "tirex", "timesfm", "ft_chronos2")
-CONFIG_ORDER = (("zeroshot", 0), ("mmr_euclid", 5))
+CONFIG_ORDER = (("zeroshot", 0), ("mmr_euclid", 5), ("ctx_level", 5))
 
 
 def rmse(rows: list[dict]) -> float:

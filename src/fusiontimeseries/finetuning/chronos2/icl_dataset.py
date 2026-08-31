@@ -54,6 +54,18 @@ from fusiontimeseries.finetuning.chronos2.dataset import Chronos2Dataset
 __all__ = ["Chronos2ICLDataset"]
 
 
+def _zscore_context(x: np.ndarray) -> np.ndarray:
+    """Per-sample z-score, an exact copy of ``selection._zscore``.
+
+    Duplicated rather than imported to keep the finetuning package free of a
+    dependency on the benchmarking package; the ``shape`` retrieval key must
+    match the eval-side ``ctx_euclid`` key exactly.
+    """
+    mean, std = float(x.mean()), float(x.std())
+    std = std if std > 0 else 1.0
+    return (x - mean) / std
+
+
 class Chronos2ICLDataset(Chronos2Dataset):
     """Chronos-2 dataset that builds multi-example ICL concatenations.
 
@@ -61,7 +73,16 @@ class Chronos2ICLDataset(Chronos2Dataset):
     train and val instances share the same retrieval mode / k-set).
 
     Attributes:
-        icl_retrieval: ``"level"`` (nearest by context level) or ``"random"``.
+        icl_retrieval: ``"level"`` (nearest by context level), ``"shape"``
+            (nearest by Euclidean distance between context windows) or
+            ``"random"``.
+        exclude_siblings: drop demo candidates from the SAME simulation as the
+            query. The flat flux data expands every simulation into its three
+            subsample phases, which share operating parameters AND saturation
+            level, so a sibling demo hands the model the query's own answer.
+            Without this, ``shape`` retrieval returns a sibling 83% of the time
+            (median |tail gap| 0.04 against a pool spread of 42) and the model
+            learns to copy the last demo's level instead of inferring it.
         num_examples: k-set sampled per training sample (e.g. ``(1, 3, 5)``).
         val_num_examples: fixed k used for the deterministic validation samples.
         icl_start_context: window for the context-level retrieval key (80, the
@@ -70,6 +91,7 @@ class Chronos2ICLDataset(Chronos2Dataset):
     """
 
     icl_retrieval: str = "level"
+    exclude_siblings: bool = True
     num_examples: tuple[int, ...] = (1, 3, 5)
     val_num_examples: int = 3
     icl_start_context: int = 80
@@ -85,6 +107,22 @@ class Chronos2ICLDataset(Chronos2Dataset):
             ],
             dtype=np.float64,
         )
+        # Per-trace Z-SCORED context window = the eval ``ctx_euclid`` retrieval
+        # key. The z-scoring is what separates SHAPE from LEVEL: on raw
+        # contexts the level offset dominates the Euclidean distance and
+        # ``shape`` retrieval degenerates into ``level`` retrieval. Matches
+        # ``benchmarking.few_shot.selection._zscore`` exactly.
+        # Per-trace simulation id, taken from the operating-parameter vector
+        # (exactly 3 traces per distinct vector = the 3 subsample phases).
+        self.sim_ids: np.ndarray = np.unique(
+            np.asarray(self.ops, dtype=np.float64), axis=0, return_inverse=True
+        )[1]
+        self.context_windows: np.ndarray = np.stack(
+            [
+                _zscore_context(np.asarray(ts, dtype=np.float64)[: self.icl_start_context])
+                for ts in self.time_series
+            ]
+        )
 
     @classmethod
     def train_val_split(
@@ -94,26 +132,30 @@ class Chronos2ICLDataset(Chronos2Dataset):
         icl_retrieval: str = "level",
         num_examples: tuple[int, ...] = (1, 3, 5),
         val_num_examples: int = 3,
+        exclude_siblings: bool = True,
     ):
         """Base split, then inject the ICF retrieval mode + k-set on both sets.
 
         Args:
             config: ``FTSConfig`` (with ``context_length`` raised to the ICF
                 window, e.g. 2048).
-            icl_retrieval: ``"level"`` or ``"random"`` (the two ICF checkpoints).
+            icl_retrieval: ``"level"``, ``"shape"`` or ``"random"`` (one per
+                ICF checkpoint).
             num_examples: k-set sampled per training sample.
             val_num_examples: fixed k for deterministic validation samples.
 
         Returns:
             ``(train_dataset, val_dataset)``, both ``Chronos2ICLDataset``.
         """
-        if icl_retrieval not in ("level", "random"):
+        if icl_retrieval not in ("level", "shape", "random"):
             raise ValueError(
-                f"Unknown icl_retrieval {icl_retrieval!r}; expected 'level' or 'random'"
+                f"Unknown icl_retrieval {icl_retrieval!r}; "
+                "expected 'level', 'shape' or 'random'"
             )
         train_dataset, val_dataset = super().train_val_split(config)
         for dataset in (train_dataset, val_dataset):
             dataset.icl_retrieval = icl_retrieval
+            dataset.exclude_siblings = bool(exclude_siblings)
             dataset.num_examples = tuple(num_examples)
             dataset.val_num_examples = int(val_num_examples)
         return train_dataset, val_dataset
@@ -125,16 +167,34 @@ class Chronos2ICLDataset(Chronos2Dataset):
 
         ``level`` ranks the other traces by ``|context_level - query_level|``
         and returns them nearest-LAST (the nearest demo sits adjacent to the
-        query, matching the ``selection.py`` convention). ``random`` samples
-        without replacement via ``rng`` (the global module in train mode, a
-        deterministic per-idx ``Generator`` in val mode).
+        query, matching the ``selection.py`` convention). ``shape`` ranks them
+        by the Euclidean distance between Z-SCORED 80-step context windows,
+        the train-side counterpart of the eval ``ctx_euclid`` retriever, and
+        orders them the same way. ``random`` samples without replacement via ``rng``
+        (the global module in train mode, a deterministic per-idx ``Generator``
+        in val mode).
         """
         candidates = np.array(
-            [j for j in range(len(self.time_series)) if j != idx]
+            [
+                j
+                for j in range(len(self.time_series))
+                if j != idx
+                and not (self.exclude_siblings and self.sim_ids[j] == self.sim_ids[idx])
+            ]
         )
         if self.icl_retrieval == "level":
             query_level = float(np.mean(np.asarray(query)[: self.icl_start_context]))
             dists = np.abs(self.context_levels[candidates] - query_level)
+            order = np.argsort(dists, kind="stable")  # nearest first
+            chosen = candidates[order[:k]]
+            return [int(j) for j in chosen[::-1]]  # nearest LAST
+        if self.icl_retrieval == "shape":
+            query_ctx = _zscore_context(
+                np.asarray(query, dtype=np.float64)[: self.icl_start_context]
+            )
+            dists = np.linalg.norm(
+                self.context_windows[candidates] - query_ctx, axis=1
+            )
             order = np.argsort(dists, kind="stable")  # nearest first
             chosen = candidates[order[:k]]
             return [int(j) for j in chosen[::-1]]  # nearest LAST

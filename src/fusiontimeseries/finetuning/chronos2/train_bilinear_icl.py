@@ -27,6 +27,7 @@ CLASS attribute, so a second model load rebinds the shared embed under the
 first — never train/eval two in one process):
 
 - ``--icl-retrieval level``  → ``outputs/chronos2-bilinear-icl-level-<n>/``
+- ``--icl-retrieval shape``  → ``outputs/chronos2-bilinear-icl-shape-<n>/``
 - ``--icl-retrieval random`` → ``outputs/chronos2-bilinear-icl-random-<n>/`` (control)
 
 Conditioning is QUERY-ONLY (Option A): the trainer patches one
@@ -83,10 +84,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Chronos-2 BilinearLoRA in-context finetuning")
     parser.add_argument(
         "--icl-retrieval",
-        choices=("level", "random"),
+        choices=("level", "shape", "random"),
         required=True,
         help="level = demos retrieved by context-mean (train≡test ctx_level); "
-        "random = control (demos sampled at random)",
+        "shape = demos retrieved by context Euclidean distance (train≡test "
+        "ctx_euclid); random = control (demos sampled at random)",
+    )
+    parser.add_argument(
+        "--allow-sibling-demos",
+        action="store_true",
+        help="allow demos from the SAME simulation as the query (its other two "
+        "subsample phases). They share the query's saturation level, so this "
+        "leaks the answer; only for reproducing the pre-fix runs.",
     )
     parser.add_argument(
         "--num-examples",
@@ -159,6 +168,7 @@ def main() -> None:
         icl_retrieval=args.icl_retrieval,
         num_examples=tuple(args.num_examples),
         val_num_examples=args.val_num_examples,
+        exclude_siblings=not args.allow_sibling_demos,
     )
 
     on_cuda = args.device.startswith("cuda")
@@ -226,6 +236,7 @@ def main() -> None:
     summary["best_metric"] = trainer.state.best_metric
     summary["icf"] = {
         "icl_retrieval": args.icl_retrieval,
+        "exclude_siblings": not args.allow_sibling_demos,
         "num_examples": list(args.num_examples),
         "val_num_examples": args.val_num_examples,
         "context_length": fts_config.context_length,

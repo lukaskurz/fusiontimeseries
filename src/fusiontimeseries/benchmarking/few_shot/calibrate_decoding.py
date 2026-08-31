@@ -74,8 +74,14 @@ from fusiontimeseries.lib.dataset import TRAIN_IDXS
 
 #: Quantile levels to probe (resolved to each model's nearest available level).
 REQUESTED_LEVELS: tuple[float, ...] = (0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
-#: (strategy, k) — both deterministic, single seed 42. Same two as the 06-14 sweep.
-CONFIGS: tuple[tuple[str, int], ...] = (("zeroshot", 0), ("mmr_euclid", 5))
+#: (strategy, k) — all deterministic, single seed 42. The first two are the
+#: 06-14 sweep's configs; ``ctx_level`` was added 2026-08-30 because it carries
+#: the report's OOD numbers and had no off-benchmark decoding of its own.
+CONFIGS: tuple[tuple[str, int], ...] = (
+    ("zeroshot", 0),
+    ("mmr_euclid", 5),
+    ("ctx_level", 5),
+)
 #: Report checkpoint behind the ft rows (Phase-6 v6 grid / the 15.63 ID cell).
 FT_CHECKPOINT = Path("results/few_shot_v6_finetuned/checkpoint/lora_weights.pt")
 
@@ -340,7 +346,10 @@ def main() -> None:
     n_cal = sum(1 for q in queries if q.evalset == "calibration")
     print(f"queries: {n_cal} calibration + {len(queries) - n_cal} benchmark", flush=True)
 
-    select_fns = {"mmr_euclid": make_select_fn("mmr_euclid")}
+    select_fns = {
+        s: make_select_fn(s)
+        for s in {strategy for strategy, k in CONFIGS if k > 0}
+    }
     # Retrieved examples depend only on (query, k) — hoisted out of the spec loop.
     example_cache: dict[tuple[str, str, int], list[FewShotExample]] = {}
 

@@ -55,6 +55,31 @@ Held-out calibration RMSE: median 29.35 | mean 27.96 | CV-selected q 25.93
   - bias0  → q0.60 →  40.00 | vs median  -2.56 [-9.36, +9.42] | vs mean  -2.63 [-6.99, +5.42]
   - cov50  → q0.60 →  40.00 | vs median  -2.56 [-9.36, +9.42] | vs mean  -2.63 [-6.99, +5.42]
 
+### ctx_level k=5
+
+| spec | calib RMSE (n=244) | calib bias | calib P(pred>true) | bench ID (n=6) | bench OOD (n=5) |
+|---|---|---|---|---|---|
+| q0.50  | 25.07 | -10.51 | 0.34 | 43.14 | 30.27 |
+| q0.60 **argmin** **bias0** **cov50** | 23.32 | -2.11 | 0.50 | 37.11 | 27.79 |
+| q0.70  | 26.05 | +8.05 | 0.67 | 30.23 | 30.46 |
+| q0.80 _test-argmin_ | 35.68 | +22.03 | 0.82 | 23.23 | 35.50 |
+| q0.90  | 57.22 | +45.12 | 0.93 | 24.55 | 47.69 |
+| q0.95  | 85.87 | +72.92 | 0.97 | 43.08 | 74.84 |
+| q0.99  | 175.94 | +155.49 | 1.00 | 105.15 | 184.25 |
+| mean  | 23.85 | -6.55 | 0.42 | 40.56 | 31.31 |
+
+**5-fold selection** (stratified by tail level) picks: q0.60, q0.60, q0.60, q0.60, q0.60 → unanimous
+Held-out calibration RMSE: median 25.07 | mean 23.85 | CV-selected q 23.32
+
+**Transfer ID** (baselines: median 43.14, mean 40.56; test-argmin q0.80 → 23.23 = unreachable upper bound)
+  - argmin → q0.60 →  37.11 | vs median  -6.02 [-8.33, -4.09] | vs mean  -3.45 [-4.62, -2.23]
+  - bias0  → q0.60 →  37.11 | vs median  -6.02 [-8.33, -4.09] | vs mean  -3.45 [-4.62, -2.23]
+  - cov50  → q0.60 →  37.11 | vs median  -6.02 [-8.33, -4.09] | vs mean  -3.45 [-4.62, -2.23]
+**Transfer OOD** (baselines: median 30.27, mean 31.31; test-argmin q0.80 → 35.50 = unreachable upper bound)
+  - argmin → q0.60 →  27.79 | vs median  -2.48 [-6.80, +8.23] | vs mean  -3.52 [-7.09, +4.12]
+  - bias0  → q0.60 →  27.79 | vs median  -2.48 [-6.80, +8.23] | vs mean  -3.52 [-7.09, +4.12]
+  - cov50  → q0.60 →  27.79 | vs median  -2.48 [-6.80, +8.23] | vs mean  -3.52 [-7.09, +4.12]
+
 
 ## chronos_bolt
 
@@ -104,6 +129,29 @@ Held-out calibration RMSE: median 28.99 | mean 29.01 | CV-selected q 29.07
   - bias0  → mean →  38.05 | vs median  +0.84 [+0.32, +2.37] | vs mean  +0.00 [+0.00, +0.00]
   - cov50  → mean →  38.05 | vs median  +0.84 [+0.32, +2.37] | vs mean  +0.00 [+0.00, +0.00]
 
+### ctx_level k=5
+
+| spec | calib RMSE (n=244) | calib bias | calib P(pred>true) | bench ID (n=6) | bench OOD (n=5) |
+|---|---|---|---|---|---|
+| q0.50 **argmin** **bias0** **cov50** | 24.00 | +1.99 | 0.52 | 39.29 | 22.45 |
+| q0.60  | 29.44 | +14.18 | 0.74 | 31.37 | 26.63 |
+| q0.70 _test-argmin_ | 40.73 | +28.28 | 0.85 | 27.72 | 38.11 |
+| q0.80  | 59.62 | +47.76 | 0.93 | 36.40 | 56.62 |
+| q0.90  | 99.37 | +85.67 | 0.99 | 75.16 | 98.02 |
+| mean  | 24.19 | +2.90 | 0.54 | 38.69 | 21.91 |
+
+**5-fold selection** (stratified by tail level) picks: q0.50, q0.50, q0.50, q0.50, q0.50 → unanimous
+Held-out calibration RMSE: median 24.00 | mean 24.19 | CV-selected q 24.00
+
+**Transfer ID** (baselines: median 39.29, mean 38.69; test-argmin q0.70 → 27.72 = unreachable upper bound)
+  - argmin → q0.50 →  39.29 | vs median  +0.00 [+0.00, +0.00] | vs mean  +0.60 [-0.19, +1.12]
+  - bias0  → q0.50 →  39.29 | vs median  +0.00 [+0.00, +0.00] | vs mean  +0.60 [-0.19, +1.12]
+  - cov50  → q0.50 →  39.29 | vs median  +0.00 [+0.00, +0.00] | vs mean  +0.60 [-0.19, +1.12]
+**Transfer OOD** (baselines: median 22.45, mean 21.91; test-argmin q0.70 → 38.11 = unreachable upper bound)
+  - argmin → q0.50 →  22.45 | vs median  +0.00 [+0.00, +0.00] | vs mean  +0.54 [-1.02, +1.55]
+  - bias0  → q0.50 →  22.45 | vs median  +0.00 [+0.00, +0.00] | vs mean  +0.54 [-1.02, +1.55]
+  - cov50  → q0.50 →  22.45 | vs median  +0.00 [+0.00, +0.00] | vs mean  +0.54 [-1.02, +1.55]
+
 
 ## tirex
 
@@ -152,6 +200,29 @@ Held-out calibration RMSE: median 26.13 | mean 25.91 | CV-selected q 25.91
   - argmin → mean →  33.18 | vs median  +0.80 [-0.32, +1.83] | vs mean  +0.00 [+0.00, +0.00]
   - bias0  → q0.60 →  30.00 | vs median  -2.39 [-9.78, +9.05] | vs mean  -3.19 [-11.31, +9.37]
   - cov50  → q0.50 →  32.38 | vs median  +0.00 [+0.00, +0.00] | vs mean  -0.80 [-1.83, +0.32]
+
+### ctx_level k=5
+
+| spec | calib RMSE (n=244) | calib bias | calib P(pred>true) | bench ID (n=6) | bench OOD (n=5) |
+|---|---|---|---|---|---|
+| q0.50  | 22.52 | -7.17 | 0.41 | 40.38 | 29.29 |
+| q0.60 **argmin** **bias0** **cov50** | 21.33 | +1.44 | 0.56 | 34.08 | 26.89 |
+| q0.70  | 25.18 | +11.44 | 0.74 | 27.41 | 27.87 |
+| q0.80 _test-argmin_ | 38.01 | +27.21 | 0.86 | 21.63 | 36.64 |
+| q0.90  | 63.95 | +52.76 | 0.95 | 33.15 | 57.57 |
+| mean  | 22.47 | -6.62 | 0.42 | 39.33 | 29.50 |
+
+**5-fold selection** (stratified by tail level) picks: q0.60, q0.60, q0.60, q0.60, q0.60 → unanimous
+Held-out calibration RMSE: median 22.52 | mean 22.47 | CV-selected q 21.33
+
+**Transfer ID** (baselines: median 40.38, mean 39.33; test-argmin q0.80 → 21.63 = unreachable upper bound)
+  - argmin → q0.60 →  34.08 | vs median  -6.30 [-8.59, -4.26] | vs mean  -5.25 [-7.78, -3.44]
+  - bias0  → q0.60 →  34.08 | vs median  -6.30 [-8.59, -4.26] | vs mean  -5.25 [-7.78, -3.44]
+  - cov50  → q0.60 →  34.08 | vs median  -6.30 [-8.59, -4.26] | vs mean  -5.25 [-7.78, -3.44]
+**Transfer OOD** (baselines: median 29.29, mean 29.50; test-argmin q0.80 → 36.64 = unreachable upper bound)
+  - argmin → q0.60 →  26.89 | vs median  -2.40 [-6.81, +7.67] | vs mean  -2.61 [-7.11, +7.32]
+  - bias0  → q0.60 →  26.89 | vs median  -2.40 [-6.81, +7.67] | vs mean  -2.61 [-7.11, +7.32]
+  - cov50  → q0.60 →  26.89 | vs median  -2.40 [-6.81, +7.67] | vs mean  -2.61 [-7.11, +7.32]
 
 
 ## timesfm
@@ -203,6 +274,30 @@ Held-out calibration RMSE: median 29.58 | mean 29.88 | CV-selected q 30.16
   - argmin → q0.60 →  40.95 | vs median  -3.36 [-18.05, +12.93] | vs mean  -4.04 [-18.03, +13.19]
   - bias0  → q0.60 →  40.95 | vs median  -3.36 [-18.05, +12.93] | vs mean  -4.04 [-18.03, +13.19]
   - cov50  → mean →  44.99 | vs median  +0.68 [-0.86, +2.47] | vs mean  +0.00 [+0.00, +0.00]
+
+### ctx_level k=5
+
+| spec | calib RMSE (n=244) | calib bias | calib P(pred>true) | bench ID (n=6) | bench OOD (n=5) |
+|---|---|---|---|---|---|
+| q0.50  | 23.72 | -9.88 | 0.32 | 42.53 | 26.04 |
+| q0.60 **argmin** **bias0** **cov50** | 21.68 | +1.11 | 0.57 | 34.63 | 23.70 |
+| q0.70  | 25.77 | +11.75 | 0.73 | 27.88 | 26.24 |
+| q0.80 _test-argmin_ | 41.17 | +30.84 | 0.91 | 26.26 | 39.47 |
+| q0.90  | 69.12 | +58.80 | 0.98 | 42.09 | 63.30 |
+| mean  | 23.99 | -10.54 | 0.32 | 42.41 | 27.60 |
+| meanhead  | 24.15 | -11.15 | 0.32 | 43.42 | 28.56 |
+
+**5-fold selection** (stratified by tail level) picks: q0.60, q0.60, q0.60, q0.60, q0.60 → unanimous
+Held-out calibration RMSE: median 23.72 | mean 23.99 | CV-selected q 21.68
+
+**Transfer ID** (baselines: median 42.53, mean 42.41; test-argmin q0.80 → 26.26 = unreachable upper bound)
+  - argmin → q0.60 →  34.63 | vs median  -7.91 [-12.42, -5.17] | vs mean  -7.78 [-13.14, -4.70]
+  - bias0  → q0.60 →  34.63 | vs median  -7.91 [-12.42, -5.17] | vs mean  -7.78 [-13.14, -4.70]
+  - cov50  → q0.60 →  34.63 | vs median  -7.91 [-12.42, -5.17] | vs mean  -7.78 [-13.14, -4.70]
+**Transfer OOD** (baselines: median 26.04, mean 27.60; test-argmin q0.80 → 39.47 = unreachable upper bound)
+  - argmin → q0.60 →  23.70 | vs median  -2.34 [-8.56, +11.50] | vs mean  -3.91 [-11.38, +12.13]
+  - bias0  → q0.60 →  23.70 | vs median  -2.34 [-8.56, +11.50] | vs mean  -3.91 [-11.38, +12.13]
+  - cov50  → q0.60 →  23.70 | vs median  -2.34 [-8.56, +11.50] | vs mean  -3.91 [-11.38, +12.13]
 
 
 ## ft_chronos2
@@ -261,6 +356,33 @@ Held-out calibration RMSE: median 27.50 | mean 29.71 | CV-selected q 27.50
 
 **Contamination check**: 3 of 244 calibration traces are outside `TRAIN_IDXS` (the finetuning val set). argmin on those only: mean (11.38); argmin on all 244: q0.50 (27.50).
 
+### ctx_level k=5
+
+| spec | calib RMSE (n=244) | calib bias | calib P(pred>true) | bench ID (n=6) | bench OOD (n=5) |
+|---|---|---|---|---|---|
+| q0.50 **argmin** **bias0** **cov50** | 21.23 | -0.76 | 0.56 | 36.24 | 26.84 |
+| q0.60  | 23.67 | +8.81 | 0.70 | 29.05 | 25.15 |
+| q0.70  | 30.17 | +18.84 | 0.81 | 23.31 | 29.17 |
+| q0.80 _test-argmin_ | 41.30 | +31.50 | 0.88 | 20.92 | 39.53 |
+| q0.90  | 62.80 | +52.83 | 0.95 | 30.05 | 60.31 |
+| q0.95  | 91.05 | +79.36 | 0.98 | 51.01 | 88.09 |
+| q0.99  | 205.21 | +184.18 | 1.00 | 154.25 | 206.19 |
+| mean  | 22.75 | +7.47 | 0.67 | 29.29 | 24.58 |
+
+**5-fold selection** (stratified by tail level) picks: q0.50, q0.50, q0.50, q0.50, q0.50 → unanimous
+Held-out calibration RMSE: median 21.23 | mean 22.75 | CV-selected q 21.23
+
+**Transfer ID** (baselines: median 36.24, mean 29.29; test-argmin q0.80 → 20.92 = unreachable upper bound)
+  - argmin → q0.50 →  36.24 | vs median  +0.00 [+0.00, +0.00] | vs mean  +6.95 [+4.57, +9.14]
+  - bias0  → q0.50 →  36.24 | vs median  +0.00 [+0.00, +0.00] | vs mean  +6.95 [+4.57, +9.14]
+  - cov50  → q0.50 →  36.24 | vs median  +0.00 [+0.00, +0.00] | vs mean  +6.95 [+4.57, +9.14]
+**Transfer OOD** (baselines: median 26.84, mean 24.58; test-argmin q0.80 → 39.53 = unreachable upper bound)
+  - argmin → q0.50 →  26.84 | vs median  +0.00 [+0.00, +0.00] | vs mean  +2.26 [-9.72, +8.36]
+  - bias0  → q0.50 →  26.84 | vs median  +0.00 [+0.00, +0.00] | vs mean  +2.26 [-9.72, +8.36]
+  - cov50  → q0.50 →  26.84 | vs median  +0.00 [+0.00, +0.00] | vs mean  +2.26 [-9.72, +8.36]
+
+**Contamination check**: 3 of 244 calibration traces are outside `TRAIN_IDXS` (the finetuning val set). argmin on those only: q0.50 (12.74); argmin on all 244: q0.50 (21.23).
+
 
 ## Level-conditional optimum
 
@@ -276,14 +398,19 @@ Argmin quantile per calibration level quartile — plus the ceiling a *level-awa
 |---|---|---|---|---|---|---|---|---|---|
 | chronos2 | zeroshot k=0 | q0.80 | mean | mean | q0.70 | mean | 58.18 | 57.61 | +0.57 |
 | chronos2 | mmr_euclid k=5 | q0.50 | q0.50 | q0.60 | q0.70 | q0.60 | 25.93 | 21.10 | +4.84 |
+| chronos2 | ctx_level k=5 | q0.50 | q0.50 | mean | q0.70 | q0.60 | 23.32 | 19.99 | +3.33 |
 | chronos_bolt | zeroshot k=0 | q0.70 | q0.60 | q0.60 | q0.70 | q0.60 | 61.72 | 60.78 | +0.93 |
 | chronos_bolt | mmr_euclid k=5 | q0.50 | q0.50 | mean | q0.60 | q0.50 | 28.99 | 25.94 | +3.05 |
+| chronos_bolt | ctx_level k=5 | q0.50 | q0.50 | q0.50 | q0.60 | q0.50 | 24.00 | 23.49 | +0.51 |
 | tirex | zeroshot k=0 | q0.70 | q0.70 | q0.70 | q0.70 | q0.70 | 31.26 | 31.26 | -0.00 |
 | tirex | mmr_euclid k=5 | mean | q0.50 | mean | q0.70 | mean | 25.91 | 23.18 | +2.73 |
+| tirex | ctx_level k=5 | q0.50 | q0.50 | mean | q0.70 | q0.60 | 21.33 | 18.82 | +2.51 |
 | timesfm | zeroshot k=0 | q0.80 | q0.80 | q0.80 | q0.80 | q0.80 | 38.13 | 38.13 | +0.00 |
 | timesfm | mmr_euclid k=5 | q0.50 | meanhead | q0.60 | q0.70 | q0.60 | 29.13 | 23.20 | +5.93 |
+| timesfm | ctx_level k=5 | meanhead | meanhead | q0.60 | q0.70 | q0.60 | 21.68 | 19.06 | +2.61 |
 | ft_chronos2 | zeroshot k=0 | q0.50 | q0.50 | q0.50 | q0.50 | q0.50 | 22.03 | 22.03 | +0.00 |
 | ft_chronos2 | mmr_euclid k=5 | q0.50 | q0.50 | q0.50 | q0.70 | q0.50 | 27.50 | 25.56 | +1.94 |
+| ft_chronos2 | ctx_level k=5 | q0.50 | q0.50 | q0.50 | mean | q0.50 | 21.23 | 19.88 | +1.35 |
 
 
 ## Summary — calibration-selected decoding vs. the shipped knob
@@ -292,14 +419,19 @@ Argmin quantile per calibration level quartile — plus the ceiling a *level-awa
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | chronos2 | zeroshot k=0 | mean | q0.80 | q0.80 | mean | q0.80 | 109.91 | 89.51 | **89.51** | 67.23 | _67.23_ |
 | chronos2 | mmr_euclid k=5 | q0.60 | q0.60 | q0.60 | q0.60 | q0.60 | 29.40 | 27.06 | **21.28** | 21.28 | _21.28_ |
+| chronos2 | ctx_level k=5 | q0.60 | q0.60 | q0.60 | q0.60 | q0.80 | 43.14 | 40.56 | **37.11** | 37.11 | _23.23_ |
 | chronos_bolt | zeroshot k=0 | q0.60 | q0.80 | q0.80 | q0.60/q0.70 | q0.80 | 111.65 | 109.03 | **103.88** | 87.48 | _87.48_ |
 | chronos_bolt | mmr_euclid k=5 | q0.50 | mean | mean | mean/q0.50 | q0.60 | 26.35 | 25.86 | **26.35** | 25.86 | _21.74_ |
+| chronos_bolt | ctx_level k=5 | q0.50 | q0.50 | q0.50 | q0.50 | q0.70 | 39.29 | 38.69 | **39.29** | 39.29 | _27.72_ |
 | tirex | zeroshot k=0 | q0.70 | q0.70 | q0.70 | q0.70 | q0.80 | 78.92 | 75.67 | **45.70** | 45.70 | _32.77_ |
 | tirex | mmr_euclid k=5 | mean | q0.60 | q0.50 | mean | q0.70 | 35.51 | 36.50 | **36.50** | 25.25 | _20.63_ |
+| tirex | ctx_level k=5 | q0.60 | q0.60 | q0.60 | q0.60 | q0.80 | 40.38 | 39.33 | **34.08** | 34.08 | _21.63_ |
 | timesfm | zeroshot k=0 | q0.80 | q0.80 | q0.90 | q0.80 | q0.90 | 97.54 | 95.88 | **66.86** | 66.86 | _44.44_ |
 | timesfm | mmr_euclid k=5 | q0.60 | q0.60 | mean | q0.50/q0.60 | q0.60 | 28.46 | 28.46 | **21.03** | 21.03 | _21.03_ |
+| timesfm | ctx_level k=5 | q0.60 | q0.60 | q0.60 | q0.60 | q0.80 | 42.53 | 42.41 | **34.63** | 34.63 | _26.26_ |
 | ft_chronos2 | zeroshot k=0 | q0.50 | q0.50 | q0.50 | q0.50 | q0.70 | 25.33 | 22.20 | **25.33** | 25.33 | _16.00_ |
 | ft_chronos2 | mmr_euclid k=5 | q0.50 | q0.50 | q0.50 | q0.50 | mean | 18.77 | 15.63 | **18.77** | 18.77 | _15.63_ |
+| ft_chronos2 | ctx_level k=5 | q0.50 | q0.50 | q0.50 | q0.50 | q0.80 | 36.24 | 29.29 | **36.24** | 36.24 | _20.92_ |
 
 ## Mechanism: does the optimal level track the residual under-prediction?
 
@@ -309,13 +441,18 @@ The 06-14 claim is that "decode higher" is a global level-bias correction whose 
 |---|---|---|---|---|
 | chronos2 | zeroshot k=0 | -61.14 | 77.42 | mean |
 | chronos2 | mmr_euclid k=5 | -13.61 | 29.35 | q0.60 |
+| chronos2 | ctx_level k=5 | -10.51 | 25.07 | q0.60 |
 | chronos_bolt | zeroshot k=0 | -56.92 | 68.44 | q0.60 |
 | chronos_bolt | mmr_euclid k=5 | -4.47 | 28.99 | q0.50 |
+| chronos_bolt | ctx_level k=5 | +1.99 | 24.00 | q0.50 |
 | tirex | zeroshot k=0 | -41.10 | 50.39 | q0.70 |
 | tirex | mmr_euclid k=5 | -6.57 | 26.13 | mean |
+| tirex | ctx_level k=5 | -7.17 | 22.52 | q0.60 |
 | timesfm | zeroshot k=0 | -59.63 | 68.26 | q0.80 |
 | timesfm | mmr_euclid k=5 | -8.73 | 29.58 | q0.60 |
+| timesfm | ctx_level k=5 | -9.88 | 23.72 | q0.60 |
 | ft_chronos2 | zeroshot k=0 | +7.05 | 22.03 | q0.50 |
 | ft_chronos2 | mmr_euclid k=5 | -1.70 | 27.50 | q0.50 |
+| ft_chronos2 | ctx_level k=5 | -0.76 | 21.23 | q0.50 |
 
-Pearson r(median-decode bias, q*_cal) = -0.822 over 8 (model, config) cells — negative = more under-prediction wants a higher quantile.
+Pearson r(median-decode bias, q*_cal) = -0.816 over 13 (model, config) cells — negative = more under-prediction wants a higher quantile.
